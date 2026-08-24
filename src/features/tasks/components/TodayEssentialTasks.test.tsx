@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import { TodayEssentialTasks } from './TodayEssentialTasks'
 import { ESSENTIAL_TASKS_STORAGE_KEY, toLocalDateString } from '../storage/essentialTasksStorage'
 
@@ -313,5 +313,33 @@ describe('TodayEssentialTasks persistence', () => {
 
     expect(screen.getByText('Write the report')).toBeInTheDocument()
     expect(getReopenCheckbox('Write the report')).toBeChecked()
+  })
+
+  it('regression: clears a pending removal confirmation when its task disappears on a local day change instead of reattaching to a reused id', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 24, 23, 59, 0))
+
+    try {
+      render(<TodayEssentialTasks />)
+
+      addTaskByButton('Write the report')
+      fireEvent.click(getRemoveButton('Write the report'))
+      expect(
+        screen.getByText('Remover "Write the report"? Essa ação não pode ser desfeita.'),
+      ).toBeInTheDocument()
+
+      act(() => {
+        vi.advanceTimersByTime(2 * 60 * 1000)
+      })
+
+      expect(screen.queryByText('Write the report')).not.toBeInTheDocument()
+
+      addTaskByButton('New day task')
+
+      expect(screen.queryByText(/Essa ação não pode ser desfeita/)).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Cancelar' })).not.toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   addEssentialTask,
   completeEssentialTask,
@@ -52,25 +52,56 @@ function generateUniqueId(tasks: EssentialTask[], startFrom: number): { id: stri
   return { id, nextCandidate: candidate + 1 }
 }
 
+function msUntilNextLocalMidnight(date: Date): number {
+  const nextMidnight = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1, 0, 0, 0, 0)
+  return Math.max(nextMidnight.getTime() - date.getTime(), 0)
+}
+
+function readTasksForDate(storage: StorageLike | null, localDate: string): EssentialTask[] {
+  if (!storage) return []
+
+  try {
+    const result = readEssentialTasks(storage, localDate)
+    return result.status === 'today' ? result.tasks : []
+  } catch {
+    return []
+  }
+}
+
 export function useEssentialTasks(options: UseEssentialTasksOptions = {}) {
   const [storage] = useState<StorageLike | null>(() =>
     options.storage !== undefined ? options.storage : getDefaultStorage(),
   )
   const [now] = useState<() => Date>(() => options.now ?? (() => new Date()))
-  const [localDate] = useState<string>(() => toLocalDateString(now()))
+  const [localDate, setLocalDate] = useState<string>(() => toLocalDateString(now()))
 
-  const [tasks, setTasks] = useState<EssentialTask[]>(() => {
-    if (!storage) return []
-
-    try {
-      const result = readEssentialTasks(storage, localDate)
-      return result.status === 'today' ? result.tasks : []
-    } catch {
-      return []
-    }
-  })
+  const [tasks, setTasks] = useState<EssentialTask[]>(() => readTasksForDate(storage, localDate))
 
   const [nextId, setNextId] = useState<number>(() => getInitialNextId(tasks))
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    const checkForLocalDayChange = () => {
+      const newLocalDate = toLocalDateString(now())
+      if (newLocalDate === localDate) return
+
+      const newTasks = readTasksForDate(storage, newLocalDate)
+      setTasks(newTasks)
+      setNextId(getInitialNextId(newTasks))
+      setLocalDate(newLocalDate)
+    }
+
+    const timeoutId = window.setTimeout(checkForLocalDayChange, msUntilNextLocalMidnight(now()))
+    window.addEventListener('focus', checkForLocalDayChange)
+    document.addEventListener('visibilitychange', checkForLocalDayChange)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+      window.removeEventListener('focus', checkForLocalDayChange)
+      document.removeEventListener('visibilitychange', checkForLocalDayChange)
+    }
+  }, [localDate, storage, now])
 
   const persist = useCallback(
     (nextTasks: EssentialTask[]) => {

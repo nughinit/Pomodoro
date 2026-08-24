@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { StrictMode } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useEssentialTasks } from './useEssentialTasks'
 import { ESSENTIAL_TASKS_STORAGE_KEY } from '../storage/essentialTasksStorage'
 import type { EssentialTask } from '../domain/types'
@@ -16,8 +16,10 @@ function now(date: Date) {
 class FakeStorage implements StorageLike {
   private store = new Map<string, string>()
   setItemCalls = 0
+  getItemCalls = 0
 
   getItem(key: string): string | null {
+    this.getItemCalls += 1
     return this.store.has(key) ? this.store.get(key)! : null
   }
 
@@ -402,5 +404,192 @@ describe('useEssentialTasks default now', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('useEssentialTasks local day change', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('clears the previous day tasks from Today when the clock crosses local midnight', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 24, 23, 59, 0))
+
+    const storage = new FakeStorage()
+    storage.seedRecord('2026-08-24', [{ id: 'essential-task-1', title: 'Write report', status: 'pending' }])
+
+    const { result } = renderHook(() => useEssentialTasks({ storage }))
+    expect(result.current.tasks).toEqual([{ id: 'essential-task-1', title: 'Write report', status: 'pending' }])
+
+    act(() => {
+      vi.advanceTimersByTime(2 * 60 * 1000)
+    })
+
+    expect(result.current.tasks).toEqual([])
+  })
+
+  it('rolls over correctly across a month boundary', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 31, 23, 59, 30))
+
+    const storage = new FakeStorage()
+    storage.seedRecord('2026-08-31', [{ id: 'essential-task-1', title: 'August task', status: 'pending' }])
+
+    const { result } = renderHook(() => useEssentialTasks({ storage }))
+
+    act(() => {
+      vi.advanceTimersByTime(60 * 1000)
+    })
+
+    expect(result.current.tasks).toEqual([])
+  })
+
+  it('rolls over correctly from December 31st to January 1st', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 11, 31, 23, 59, 30))
+
+    const storage = new FakeStorage()
+    storage.seedRecord('2026-12-31', [{ id: 'essential-task-1', title: 'Year end task', status: 'pending' }])
+
+    const { result } = renderHook(() => useEssentialTasks({ storage }))
+
+    act(() => {
+      vi.advanceTimersByTime(60 * 1000)
+    })
+
+    expect(result.current.tasks).toEqual([])
+  })
+
+  it('does not call setItem during an automatic day change', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 24, 23, 59, 0))
+
+    const storage = new FakeStorage()
+    storage.seedRecord('2026-08-24', [{ id: 'essential-task-1', title: 'Write report', status: 'pending' }])
+
+    renderHook(() => useEssentialTasks({ storage }))
+
+    act(() => {
+      vi.advanceTimersByTime(2 * 60 * 1000)
+    })
+
+    expect(storage.setItemCalls).toBe(0)
+  })
+
+  it('leaves the previous day record intact after an automatic day change', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 24, 23, 59, 0))
+
+    const storage = new FakeStorage()
+    storage.seedRecord('2026-08-24', [{ id: 'essential-task-1', title: 'Write report', status: 'pending' }])
+
+    renderHook(() => useEssentialTasks({ storage }))
+
+    act(() => {
+      vi.advanceTimersByTime(2 * 60 * 1000)
+    })
+
+    expect(storage.readRecord()).toEqual({
+      version: 1,
+      localDate: '2026-08-24',
+      tasks: [{ id: 'essential-task-1', title: 'Write report', status: 'pending' }],
+    })
+  })
+
+  it('persists a task added after the day change using the new local date', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 24, 23, 59, 0))
+
+    const storage = new FakeStorage()
+    storage.seedRecord('2026-08-24', [{ id: 'essential-task-1', title: 'Write report', status: 'pending' }])
+
+    const { result } = renderHook(() => useEssentialTasks({ storage }))
+
+    act(() => {
+      vi.advanceTimersByTime(2 * 60 * 1000)
+    })
+
+    act(() => {
+      result.current.addTask('New day task')
+    })
+
+    expect(storage.readRecord()).toEqual({
+      version: 1,
+      localDate: '2026-08-25',
+      tasks: [{ id: 'essential-task-1', title: 'New day task', status: 'pending' }],
+    })
+  })
+
+  it('recomputes the next id from tasks hydrated for the new day, without colliding with them', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 24, 23, 59, 0))
+
+    const storage = new FakeStorage()
+    storage.seedRecord('2026-08-24', [{ id: 'essential-task-1', title: 'Old task', status: 'pending' }])
+
+    const { result } = renderHook(() => useEssentialTasks({ storage }))
+
+    storage.seedRecord('2026-08-25', [
+      { id: 'essential-task-5', title: 'Already on the new day', status: 'pending' },
+    ])
+
+    act(() => {
+      vi.advanceTimersByTime(2 * 60 * 1000)
+    })
+
+    expect(result.current.tasks).toEqual([
+      { id: 'essential-task-5', title: 'Already on the new day', status: 'pending' },
+    ])
+
+    act(() => {
+      result.current.addTask('New task')
+    })
+
+    const ids = result.current.tasks.map((task) => task.id)
+    expect(ids).toEqual(['essential-task-5', 'essential-task-6'])
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it('does not reset the tasks again after the day already changed once', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 24, 23, 59, 0))
+
+    const storage = new FakeStorage()
+    storage.seedRecord('2026-08-24', [{ id: 'essential-task-1', title: 'Write report', status: 'pending' }])
+
+    const { result } = renderHook(() => useEssentialTasks({ storage }))
+
+    act(() => {
+      vi.advanceTimersByTime(2 * 60 * 1000)
+    })
+    act(() => {
+      result.current.addTask('New day task')
+    })
+    act(() => {
+      vi.advanceTimersByTime(60 * 60 * 1000)
+    })
+
+    expect(result.current.tasks).toEqual([
+      { id: 'essential-task-1', title: 'New day task', status: 'pending' },
+    ])
+  })
+
+  it('clears the scheduled midnight check on unmount, so no further storage reads happen after crossing midnight', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 24, 23, 59, 0))
+
+    const storage = new FakeStorage()
+    storage.seedRecord('2026-08-24', [{ id: 'essential-task-1', title: 'Write report', status: 'pending' }])
+
+    const { unmount } = renderHook(() => useEssentialTasks({ storage }))
+    const readsBeforeUnmount = storage.getItemCalls
+    unmount()
+
+    act(() => {
+      vi.advanceTimersByTime(2 * 60 * 1000)
+    })
+
+    expect(storage.getItemCalls).toBe(readsBeforeUnmount)
   })
 })

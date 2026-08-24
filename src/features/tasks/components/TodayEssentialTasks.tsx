@@ -14,6 +14,7 @@ export function TodayEssentialTasks() {
   const [title, setTitle] = useState('')
   const [feedback, setFeedback] = useState('')
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
+  const [tasksSnapshotForConfirm, setTasksSnapshotForConfirm] = useState(tasks)
   const [focusRequestId, setFocusRequestId] = useState(0)
   const pendingFocusRef = useRef(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -57,6 +58,14 @@ export function TodayEssentialTasks() {
       cancelButtonRef.current?.focus()
     }
   }, [confirmingId])
+
+  if (tasksSnapshotForConfirm !== tasks) {
+    setTasksSnapshotForConfirm(tasks)
+
+    if (confirmingId !== null && !tasks.some((task) => task.id === confirmingId)) {
+      setConfirmingId(null)
+    }
+  }
 
   useEffect(() => {
     if (!pendingFocusRef.current) return
