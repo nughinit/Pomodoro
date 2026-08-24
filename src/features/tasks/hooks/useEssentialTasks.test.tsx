@@ -259,9 +259,12 @@ describe('useEssentialTasks id handling', () => {
     expect(ids).toContain('essential-task-3')
   })
 
-  it('avoids collisions when a persisted id does not follow the essential-task-N pattern', () => {
+  it('preserves a persisted id outside the essential-task-N pattern and assigns the next pattern id without collision', () => {
     const storage = new FakeStorage()
-    storage.seedRecord('2026-08-24', [{ id: 'essential-task-1', title: 'Legacy', status: 'pending' }])
+    storage.seedRecord('2026-08-24', [
+      { id: 'custom-task-id', title: 'Legacy', status: 'pending' },
+      { id: 'essential-task-1', title: 'First', status: 'pending' },
+    ])
 
     const { result } = renderHook(() => useEssentialTasks({ storage, now: now(TODAY) }))
 
@@ -270,7 +273,19 @@ describe('useEssentialTasks id handling', () => {
     })
 
     const ids = result.current.tasks.map((task) => task.id)
+    expect(ids).toContain('custom-task-id')
+    expect(ids).toContain('essential-task-2')
     expect(new Set(ids).size).toBe(ids.length)
+
+    expect(storage.readRecord()).toEqual({
+      version: 1,
+      localDate: '2026-08-24',
+      tasks: [
+        { id: 'custom-task-id', title: 'Legacy', status: 'pending' },
+        { id: 'essential-task-1', title: 'First', status: 'pending' },
+        { id: 'essential-task-2', title: 'New task', status: 'pending' },
+      ],
+    })
   })
 })
 
