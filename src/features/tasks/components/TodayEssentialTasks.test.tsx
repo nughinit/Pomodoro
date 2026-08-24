@@ -342,4 +342,58 @@ describe('TodayEssentialTasks persistence', () => {
       vi.useRealTimers()
     }
   })
+
+  it('regression: clears a pending removal confirmation across a local day change even when the new day hydrates a task reusing the same id', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 24, 23, 59, 0))
+
+    try {
+      window.localStorage.setItem(
+        ESSENTIAL_TASKS_STORAGE_KEY,
+        JSON.stringify({
+          version: 1,
+          localDate: '2026-08-24',
+          tasks: [{ id: 'essential-task-1', title: 'Old day task', status: 'pending' }],
+        }),
+      )
+
+      render(<TodayEssentialTasks />)
+      expect(screen.getByText('Old day task')).toBeInTheDocument()
+
+      fireEvent.click(getRemoveButton('Old day task'))
+      expect(
+        screen.getByText('Remover "Old day task"? Essa ação não pode ser desfeita.'),
+      ).toBeInTheDocument()
+
+      window.localStorage.setItem(
+        ESSENTIAL_TASKS_STORAGE_KEY,
+        JSON.stringify({
+          version: 1,
+          localDate: '2026-08-25',
+          tasks: [{ id: 'essential-task-1', title: 'New day task', status: 'pending' }],
+        }),
+      )
+      const setItemSpy = vi.spyOn(window.localStorage, 'setItem')
+
+      act(() => {
+        vi.advanceTimersByTime(2 * 60 * 1000)
+      })
+
+      expect(screen.getByText('New day task')).toBeInTheDocument()
+      expect(screen.queryByText(/Essa ação não pode ser desfeita/)).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Cancelar' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Confirmar remoção' })).not.toBeInTheDocument()
+      expect(setItemSpy).not.toHaveBeenCalled()
+
+      expect(JSON.parse(window.localStorage.getItem(ESSENTIAL_TASKS_STORAGE_KEY)!)).toEqual({
+        version: 1,
+        localDate: '2026-08-25',
+        tasks: [{ id: 'essential-task-1', title: 'New day task', status: 'pending' }],
+      })
+
+      setItemSpy.mockRestore()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

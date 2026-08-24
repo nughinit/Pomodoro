@@ -62,7 +62,7 @@ export function TodayEssentialTasks() {
   if (tasksSnapshotForConfirm !== tasks) {
     setTasksSnapshotForConfirm(tasks)
 
-    if (confirmingId !== null && !tasks.some((task) => task.id === confirmingId)) {
+    if (confirmingId !== null) {
       setConfirmingId(null)
     }
   }
