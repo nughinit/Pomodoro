@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { TodayEssentialTasks } from './TodayEssentialTasks'
+import { ESSENTIAL_TASKS_STORAGE_KEY, toLocalDateString } from '../storage/essentialTasksStorage'
 
 function getInput() {
   return screen.getByLabelText('Nova tarefa essencial') as HTMLInputElement
@@ -279,5 +280,38 @@ describe('TodayEssentialTasks', () => {
 
     expect(screen.getByRole('checkbox', { name: 'Concluir tarefa "Write the report"' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Remover tarefa "Write the report"' })).toBeInTheDocument()
+  })
+})
+
+describe('TodayEssentialTasks persistence', () => {
+  it('hydrates today tasks from localStorage on first render', () => {
+    const today = toLocalDateString(new Date())
+    window.localStorage.setItem(
+      ESSENTIAL_TASKS_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        localDate: today,
+        tasks: [{ id: 'essential-task-1', title: 'Recovered task', status: 'completed' }],
+      }),
+    )
+
+    render(<TodayEssentialTasks />)
+
+    expect(screen.getByText('Recovered task')).toBeInTheDocument()
+    expect(getReopenCheckbox('Recovered task')).toBeChecked()
+    expect(screen.getByText('1 de 4 tarefas concluídas')).toBeInTheDocument()
+  })
+
+  it('recovers titles and statuses on a remount that simulates reopening the app', () => {
+    const { unmount } = render(<TodayEssentialTasks />)
+
+    addTaskByButton('Write the report')
+    fireEvent.click(getCompleteCheckbox('Write the report'))
+    unmount()
+
+    render(<TodayEssentialTasks />)
+
+    expect(screen.getByText('Write the report')).toBeInTheDocument()
+    expect(getReopenCheckbox('Write the report')).toBeChecked()
   })
 })
