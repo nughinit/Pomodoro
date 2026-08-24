@@ -1,6 +1,12 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FocusTimer } from './FocusTimer'
+import { useFocusTimer } from '../hooks/useFocusTimer'
+
+function FocusTimerHarness() {
+  const timer = useFocusTimer()
+  return <FocusTimer {...timer} />
+}
 
 function clickPrimaryButton() {
   fireEvent.click(screen.getByRole('button', { name: /^(iniciar|iniciar novamente|pausar|continuar)$/i }))
@@ -17,14 +23,14 @@ describe('FocusTimer', () => {
   })
 
   it('shows the initial focus session at 25:00 with the start action', () => {
-    render(<FocusTimer />)
+    render(<FocusTimerHarness />)
 
     expect(screen.getByLabelText('Tempo restante 25:00')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Iniciar' })).toBeInTheDocument()
   })
 
   it('changes the primary action to Pausar after starting', () => {
-    render(<FocusTimer />)
+    render(<FocusTimerHarness />)
 
     act(() => clickPrimaryButton())
 
@@ -32,7 +38,7 @@ describe('FocusTimer', () => {
   })
 
   it('updates the visible countdown as time elapses', () => {
-    render(<FocusTimer />)
+    render(<FocusTimerHarness />)
 
     act(() => clickPrimaryButton())
     act(() => {
@@ -43,7 +49,7 @@ describe('FocusTimer', () => {
   })
 
   it('freezes the visible time when paused', () => {
-    render(<FocusTimer />)
+    render(<FocusTimerHarness />)
 
     act(() => clickPrimaryButton())
     act(() => {
@@ -63,7 +69,7 @@ describe('FocusTimer', () => {
   })
 
   it('resumes from the remaining time when continued', () => {
-    render(<FocusTimer />)
+    render(<FocusTimerHarness />)
 
     act(() => clickPrimaryButton())
     act(() => {
@@ -79,7 +85,7 @@ describe('FocusTimer', () => {
   })
 
   it('restores 25:00 on reset', () => {
-    render(<FocusTimer />)
+    render(<FocusTimerHarness />)
 
     act(() => clickPrimaryButton())
     act(() => {
@@ -92,7 +98,7 @@ describe('FocusTimer', () => {
   })
 
   it('displays 00:00 and completion status when the target time is reached', () => {
-    render(<FocusTimer />)
+    render(<FocusTimerHarness />)
 
     act(() => clickPrimaryButton())
     act(() => {
@@ -106,7 +112,7 @@ describe('FocusTimer', () => {
 
   it('clears the interval when the component unmounts while running', () => {
     const clearIntervalSpy = vi.spyOn(window, 'clearInterval')
-    const { unmount } = render(<FocusTimer />)
+    const { unmount } = render(<FocusTimerHarness />)
 
     act(() => clickPrimaryButton())
     unmount()
@@ -115,7 +121,7 @@ describe('FocusTimer', () => {
   })
 
   it('clears the interval when the timer is paused', () => {
-    render(<FocusTimer />)
+    render(<FocusTimerHarness />)
 
     act(() => clickPrimaryButton())
     const clearIntervalSpy = vi.spyOn(window, 'clearInterval')
@@ -125,7 +131,7 @@ describe('FocusTimer', () => {
   })
 
   it('clears the interval when reset', () => {
-    render(<FocusTimer />)
+    render(<FocusTimerHarness />)
 
     act(() => clickPrimaryButton())
     const clearIntervalSpy = vi.spyOn(window, 'clearInterval')
@@ -135,7 +141,7 @@ describe('FocusTimer', () => {
   })
 
   it('clears the interval when the session completes', () => {
-    render(<FocusTimer />)
+    render(<FocusTimerHarness />)
 
     act(() => clickPrimaryButton())
     const clearIntervalSpy = vi.spyOn(window, 'clearInterval')
@@ -148,7 +154,7 @@ describe('FocusTimer', () => {
 
   it('creates only one interval for an uninterrupted running period, even across many ticks', () => {
     const setIntervalSpy = vi.spyOn(window, 'setInterval')
-    render(<FocusTimer />)
+    render(<FocusTimerHarness />)
 
     act(() => clickPrimaryButton())
     expect(setIntervalSpy).toHaveBeenCalledTimes(1)
@@ -167,7 +173,7 @@ describe('FocusTimer', () => {
   })
 
   it('restarts a fresh focus session immediately after completion', () => {
-    render(<FocusTimer />)
+    render(<FocusTimerHarness />)
 
     act(() => clickPrimaryButton())
     act(() => {

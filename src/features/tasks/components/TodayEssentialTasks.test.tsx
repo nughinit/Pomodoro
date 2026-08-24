@@ -1,7 +1,13 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { TodayEssentialTasks } from './TodayEssentialTasks'
+import { useEssentialTasks } from '../hooks/useEssentialTasks'
 import { ESSENTIAL_TASKS_STORAGE_KEY, toLocalDateString } from '../storage/essentialTasksStorage'
+
+function TodayEssentialTasksHarness() {
+  const tasks = useEssentialTasks()
+  return <TodayEssentialTasks {...tasks} />
+}
 
 function getInput() {
   return screen.getByLabelText('Nova tarefa essencial') as HTMLInputElement
@@ -43,7 +49,7 @@ function getConfirmRemoveButton() {
 
 describe('TodayEssentialTasks', () => {
   it('shows the empty state and no list initially', () => {
-    render(<TodayEssentialTasks />)
+    render(<TodayEssentialTasksHarness />)
 
     expect(screen.getByRole('heading', { name: 'Hoje' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Tarefas essenciais' })).toBeInTheDocument()
@@ -55,7 +61,7 @@ describe('TodayEssentialTasks', () => {
   })
 
   it('adds a normalized task when submitting via the button and clears the input', () => {
-    render(<TodayEssentialTasks />)
+    render(<TodayEssentialTasksHarness />)
 
     addTaskByButton('  Write the report  ')
 
@@ -65,7 +71,7 @@ describe('TodayEssentialTasks', () => {
   })
 
   it('adds a task when submitting via Enter, using the same handler as the button', () => {
-    render(<TodayEssentialTasks />)
+    render(<TodayEssentialTasksHarness />)
 
     addTaskByEnter('Plan the day')
 
@@ -74,7 +80,7 @@ describe('TodayEssentialTasks', () => {
   })
 
   it('returns focus to the input after a successful addition', () => {
-    render(<TodayEssentialTasks />)
+    render(<TodayEssentialTasksHarness />)
 
     addTaskByButton('Read a chapter')
 
@@ -82,7 +88,7 @@ describe('TodayEssentialTasks', () => {
   })
 
   it('does not create a task for an empty title and shows accessible feedback', () => {
-    render(<TodayEssentialTasks />)
+    render(<TodayEssentialTasksHarness />)
 
     addTaskByButton('   ')
 
@@ -91,7 +97,7 @@ describe('TodayEssentialTasks', () => {
   })
 
   it('blocks a fifth task and disables the creation controls once the limit is reached', () => {
-    render(<TodayEssentialTasks />)
+    render(<TodayEssentialTasksHarness />)
 
     addTaskByButton('Task one')
     addTaskByButton('Task two')
@@ -111,7 +117,7 @@ describe('TodayEssentialTasks', () => {
   })
 
   it('keeps the progress text derived from completed tasks at zero while none are completed', () => {
-    render(<TodayEssentialTasks />)
+    render(<TodayEssentialTasksHarness />)
 
     addTaskByButton('Task one')
     addTaskByButton('Task two')
@@ -120,7 +126,7 @@ describe('TodayEssentialTasks', () => {
   })
 
   it('completes a pending task and reflects the control, visible text, and progress', () => {
-    render(<TodayEssentialTasks />)
+    render(<TodayEssentialTasksHarness />)
 
     addTaskByButton('Write the report')
 
@@ -132,7 +138,7 @@ describe('TodayEssentialTasks', () => {
   })
 
   it('reopens a completed task and reflects the progress', () => {
-    render(<TodayEssentialTasks />)
+    render(<TodayEssentialTasksHarness />)
 
     addTaskByButton('Write the report')
     fireEvent.click(getCompleteCheckbox('Write the report'))
@@ -145,7 +151,7 @@ describe('TodayEssentialTasks', () => {
   })
 
   it('requests removal without removing the task immediately', () => {
-    render(<TodayEssentialTasks />)
+    render(<TodayEssentialTasksHarness />)
 
     addTaskByButton('Write the report')
 
@@ -159,7 +165,7 @@ describe('TodayEssentialTasks', () => {
   })
 
   it('cancels removal, preserving the task and returning focus to its remove button', () => {
-    render(<TodayEssentialTasks />)
+    render(<TodayEssentialTasksHarness />)
 
     addTaskByButton('Write the report')
     fireEvent.click(getRemoveButton('Write the report'))
@@ -172,7 +178,7 @@ describe('TodayEssentialTasks', () => {
   })
 
   it('confirms removal, removing exactly the chosen task and moving focus to the title input', () => {
-    render(<TodayEssentialTasks />)
+    render(<TodayEssentialTasksHarness />)
 
     addTaskByButton('Write the report')
     addTaskByButton('Plan the day')
@@ -187,7 +193,7 @@ describe('TodayEssentialTasks', () => {
   })
 
   it('keeps only one removal confirmation open at a time', () => {
-    render(<TodayEssentialTasks />)
+    render(<TodayEssentialTasksHarness />)
 
     addTaskByButton('Write the report')
     addTaskByButton('Plan the day')
@@ -208,7 +214,7 @@ describe('TodayEssentialTasks', () => {
   })
 
   it('removing a completed task updates the progress', () => {
-    render(<TodayEssentialTasks />)
+    render(<TodayEssentialTasksHarness />)
 
     addTaskByButton('Write the report')
     fireEvent.click(getCompleteCheckbox('Write the report'))
@@ -221,7 +227,7 @@ describe('TodayEssentialTasks', () => {
   })
 
   it('re-enables the creation controls after removing one of four tasks and allows adding a new one', () => {
-    render(<TodayEssentialTasks />)
+    render(<TodayEssentialTasksHarness />)
 
     addTaskByButton('Task one')
     addTaskByButton('Task two')
@@ -244,7 +250,7 @@ describe('TodayEssentialTasks', () => {
   })
 
   it('re-enables and focuses the title input after removing one of four tasks (regression)', () => {
-    render(<TodayEssentialTasks />)
+    render(<TodayEssentialTasksHarness />)
 
     addTaskByButton('Task one')
     addTaskByButton('Task two')
@@ -261,7 +267,7 @@ describe('TodayEssentialTasks', () => {
   })
 
   it('shows the empty state again after removing the last task', () => {
-    render(<TodayEssentialTasks />)
+    render(<TodayEssentialTasksHarness />)
 
     addTaskByButton('Only task')
     fireEvent.click(getRemoveButton('Only task'))
@@ -274,7 +280,7 @@ describe('TodayEssentialTasks', () => {
   })
 
   it('gives every task control an accessible name that includes the task title', () => {
-    render(<TodayEssentialTasks />)
+    render(<TodayEssentialTasksHarness />)
 
     addTaskByButton('Write the report')
 
@@ -295,7 +301,7 @@ describe('TodayEssentialTasks persistence', () => {
       }),
     )
 
-    render(<TodayEssentialTasks />)
+    render(<TodayEssentialTasksHarness />)
 
     expect(screen.getByText('Recovered task')).toBeInTheDocument()
     expect(getReopenCheckbox('Recovered task')).toBeChecked()
@@ -303,13 +309,13 @@ describe('TodayEssentialTasks persistence', () => {
   })
 
   it('recovers titles and statuses on a remount that simulates reopening the app', () => {
-    const { unmount } = render(<TodayEssentialTasks />)
+    const { unmount } = render(<TodayEssentialTasksHarness />)
 
     addTaskByButton('Write the report')
     fireEvent.click(getCompleteCheckbox('Write the report'))
     unmount()
 
-    render(<TodayEssentialTasks />)
+    render(<TodayEssentialTasksHarness />)
 
     expect(screen.getByText('Write the report')).toBeInTheDocument()
     expect(getReopenCheckbox('Write the report')).toBeChecked()
@@ -320,7 +326,7 @@ describe('TodayEssentialTasks persistence', () => {
     vi.setSystemTime(new Date(2026, 7, 24, 23, 59, 0))
 
     try {
-      render(<TodayEssentialTasks />)
+      render(<TodayEssentialTasksHarness />)
 
       addTaskByButton('Write the report')
       fireEvent.click(getRemoveButton('Write the report'))
@@ -357,7 +363,7 @@ describe('TodayEssentialTasks persistence', () => {
         }),
       )
 
-      render(<TodayEssentialTasks />)
+      render(<TodayEssentialTasksHarness />)
       expect(screen.getByText('Old day task')).toBeInTheDocument()
 
       fireEvent.click(getRemoveButton('Old day task'))

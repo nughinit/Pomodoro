@@ -17,6 +17,16 @@ export interface UseEssentialTasksOptions {
   now?: () => Date
 }
 
+export interface UseEssentialTasksResult {
+  tasks: EssentialTask[]
+  addTask: (title: string) => AddEssentialTaskResult['status']
+  completeTask: (id: string) => void
+  reopenTask: (id: string) => void
+  removeTask: (id: string) => void
+  completedCount: number
+  isLimitReached: boolean
+}
+
 function getDefaultStorage(): StorageLike | null {
   try {
     if (typeof window === 'undefined') return null
@@ -68,7 +78,7 @@ function readTasksForDate(storage: StorageLike | null, localDate: string): Essen
   }
 }
 
-export function useEssentialTasks(options: UseEssentialTasksOptions = {}) {
+export function useEssentialTasks(options: UseEssentialTasksOptions = {}): UseEssentialTasksResult {
   const [storage] = useState<StorageLike | null>(() =>
     options.storage !== undefined ? options.storage : getDefaultStorage(),
   )

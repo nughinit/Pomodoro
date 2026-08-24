@@ -1,5 +1,5 @@
 import { formatTime } from '../domain/formatTime'
-import { useFocusTimer } from '../hooks/useFocusTimer'
+import type { UseFocusTimerResult } from '../hooks/useFocusTimer'
 import './FocusTimer.css'
 
 const SESSION_LABELS = {
@@ -28,9 +28,16 @@ function getPrimaryLabel(status: string): string {
   }
 }
 
-export function FocusTimer() {
-  const { state, remainingMs, handleStart, handlePause, handleResume, handleReset } = useFocusTimer()
+export type FocusTimerProps = UseFocusTimerResult
 
+export function FocusTimer({
+  state,
+  remainingMs,
+  handleStart,
+  handlePause,
+  handleResume,
+  handleReset,
+}: FocusTimerProps) {
   const handlePrimaryAction = () => {
     switch (state.status) {
       case 'idle':

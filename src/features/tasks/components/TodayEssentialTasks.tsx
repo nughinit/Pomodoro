@@ -1,16 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useEssentialTasks } from '../hooks/useEssentialTasks'
 import { MAX_ESSENTIAL_TASKS } from '../domain/types'
 import type { EssentialTask } from '../domain/types'
+import type { UseEssentialTasksResult } from '../hooks/useEssentialTasks'
 import './TodayEssentialTasks.css'
 
 const LIMIT_MESSAGE = 'Você atingiu o limite de quatro tarefas essenciais para hoje.'
 const EMPTY_TITLE_MESSAGE = 'Digite um título para adicionar a tarefa.'
 
-export function TodayEssentialTasks() {
-  const { tasks, addTask, completeTask, reopenTask, removeTask, completedCount, isLimitReached } =
-    useEssentialTasks()
+export type TodayEssentialTasksProps = UseEssentialTasksResult
+
+export function TodayEssentialTasks({
+  tasks,
+  addTask,
+  completeTask,
+  reopenTask,
+  removeTask,
+  completedCount,
+  isLimitReached,
+}: TodayEssentialTasksProps) {
   const [title, setTitle] = useState('')
   const [feedback, setFeedback] = useState('')
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
