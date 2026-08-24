@@ -54,6 +54,18 @@ Build an accessible, reliable and well-tested Pomodoro application while documen
 - [Theory-driven development plan](docs/project-plan.md)
 - [Mallow UI visual direction](docs/design-system.md)
 
+## Local setup
+
+Requires Node.js 18+.
+
+```bash
+npm install
+npm run dev       # start the local dev server
+npm run build     # type-check and build for production
+npm run lint      # run oxlint
+npm run typecheck # run the TypeScript compiler with no emit
+```
+
 ## Privacy
 
 This is an independent public portfolio project. It contains no private Intimatio source code, data or proprietary business material.

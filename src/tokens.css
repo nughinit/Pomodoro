@@ -1,0 +1,26 @@
+/* Mallow UI design tokens — see docs/design-system.md */
+:root {
+  --mallow-canvas: #eee8df;
+  --mallow-surface: #f8f3ec;
+  --mallow-surface-raised: #fffaf3;
+  --mallow-ink: #252523;
+  --mallow-muted: #716f6a;
+  --mallow-mint: #a9cbbf;
+  --mallow-aqua: #9fd7df;
+  --mallow-sky: #82b9d0;
+  --mallow-blush: #efb6bd;
+  --mallow-citrus: #d9d985;
+
+  --mallow-radius-sm: 14px;
+  --mallow-radius-md: 22px;
+  --mallow-radius-lg: 34px;
+
+  --mallow-shadow-raised:
+    -8px -8px 18px rgba(255, 255, 255, 0.72),
+    10px 14px 24px rgba(114, 96, 75, 0.18),
+    inset 1px 1px 1px rgba(255, 255, 255, 0.8);
+
+  --mallow-shadow-pressed:
+    inset 5px 6px 10px rgba(128, 109, 87, 0.15),
+    inset -4px -4px 8px rgba(255, 255, 255, 0.72);
+}
