@@ -48,9 +48,11 @@ Build an accessible, reliable and well-tested Pomodoro application while documen
 - Test behavior and risk, not implementation details
 - Keep the interface usable with keyboard and assistive technology
 
-## Roadmap
+## Product documents
 
-See [docs/project-plan.md](docs/project-plan.md).
+- [Integrated product scope](docs/product-scope.md)
+- [Theory-driven development plan](docs/project-plan.md)
+- [Mallow UI visual direction](docs/design-system.md)
 
 ## Privacy
 
