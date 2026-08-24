@@ -242,6 +242,23 @@ describe('TodayEssentialTasks', () => {
     expect(screen.getByText('Task five')).toBeInTheDocument()
   })
 
+  it('re-enables and focuses the title input after removing one of four tasks (regression)', () => {
+    render(<TodayEssentialTasks />)
+
+    addTaskByButton('Task one')
+    addTaskByButton('Task two')
+    addTaskByButton('Task three')
+    addTaskByButton('Task four')
+
+    expect(getInput()).toBeDisabled()
+
+    fireEvent.click(getRemoveButton('Task two'))
+    fireEvent.click(getConfirmRemoveButton())
+
+    expect(getInput()).not.toBeDisabled()
+    expect(getInput()).toHaveFocus()
+  })
+
   it('shows the empty state again after removing the last task', () => {
     render(<TodayEssentialTasks />)
 

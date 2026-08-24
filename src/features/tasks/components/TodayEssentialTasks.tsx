@@ -14,6 +14,8 @@ export function TodayEssentialTasks() {
   const [title, setTitle] = useState('')
   const [feedback, setFeedback] = useState('')
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
+  const [focusRequestId, setFocusRequestId] = useState(0)
+  const pendingFocusRef = useRef(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const feedbackRef = useRef<HTMLParagraphElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
@@ -56,6 +58,17 @@ export function TodayEssentialTasks() {
     }
   }, [confirmingId])
 
+  useEffect(() => {
+    if (!pendingFocusRef.current) return
+    pendingFocusRef.current = false
+
+    if (inputRef.current && !inputRef.current.disabled) {
+      inputRef.current.focus()
+    } else {
+      headingRef.current?.focus()
+    }
+  }, [focusRequestId, isLimitReached])
+
   const handleRequestRemove = (id: string) => {
     setConfirmingId(id)
   }
@@ -68,13 +81,8 @@ export function TodayEssentialTasks() {
   const handleConfirmRemove = (id: string) => {
     removeTask(id)
     setConfirmingId(null)
-
-    const remainingCount = tasks.length - 1
-    if (remainingCount < MAX_ESSENTIAL_TASKS) {
-      inputRef.current?.focus()
-    } else {
-      headingRef.current?.focus()
-    }
+    pendingFocusRef.current = true
+    setFocusRequestId((current) => current + 1)
   }
 
   const feedbackMessage = isLimitReached ? LIMIT_MESSAGE : feedback
