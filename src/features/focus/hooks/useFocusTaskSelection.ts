@@ -26,6 +26,11 @@ export function useFocusTaskSelection(
 
   const canChangeSelection = timerStatus === 'idle' || timerStatus === 'completed'
   const selectedTask = findEligibleTask(tasks, internalTaskId)
+
+  if (internalTaskId !== null && selectedTask === null) {
+    setInternalTaskId(null)
+  }
+
   const selectedTaskId = selectedTask ? selectedTask.id : null
 
   const selectTask = useCallback(

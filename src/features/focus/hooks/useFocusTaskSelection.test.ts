@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { describe, expect, it } from 'vitest'
 import { useFocusTaskSelection } from './useFocusTaskSelection'
 import type { EssentialTask } from '../../tasks/domain/types'
@@ -250,5 +251,106 @@ describe('useFocusTaskSelection', () => {
     })
 
     expect(result.current.selectedTaskId).toBe('task-2')
+  })
+})
+
+describe('useFocusTaskSelection permanent invalidation (regression)', () => {
+  it('does not restore the selection when the completed task is reopened with the same id (scenario 1)', () => {
+    const { result, rerender } = renderSelection([pendingA], 'idle')
+
+    act(() => {
+      result.current.selectTask('task-1')
+    })
+    expect(result.current.selectedTaskId).toBe('task-1')
+
+    rerender({ tasks: [completedA], status: 'idle' })
+    expect(result.current.selectedTaskId).toBeNull()
+
+    rerender({ tasks: [pendingA], status: 'idle' })
+    expect(result.current.selectedTaskId).toBeNull()
+    expect(result.current.selectedTask).toBeNull()
+
+    act(() => {
+      result.current.selectTask('task-1')
+    })
+    expect(result.current.selectedTaskId).toBe('task-1')
+  })
+
+  it('does not restore the selection when a task-1 id is reused by a different pending task after removal (scenario 2)', () => {
+    const { result, rerender } = renderSelection([pendingA], 'idle')
+
+    act(() => {
+      result.current.selectTask('task-1')
+    })
+    expect(result.current.selectedTaskId).toBe('task-1')
+
+    rerender({ tasks: [], status: 'idle' })
+    expect(result.current.selectedTaskId).toBeNull()
+
+    const reusedIdTask: EssentialTask = { id: 'task-1', title: 'New day task', status: 'pending' }
+    rerender({ tasks: [reusedIdTask], status: 'idle' })
+    expect(result.current.selectedTaskId).toBeNull()
+
+    act(() => {
+      result.current.selectTask('task-1')
+    })
+    expect(result.current.selectedTaskId).toBe('task-1')
+    expect(result.current.selectedTask).toEqual(reusedIdTask)
+  })
+
+  it('invalidates definitively while running and stays null after the task becomes eligible again', () => {
+    const { result, rerender } = renderSelection([pendingA], 'idle')
+
+    act(() => {
+      result.current.selectTask('task-1')
+    })
+
+    rerender({ tasks: [pendingA], status: 'running' })
+    rerender({ tasks: [completedA], status: 'running' })
+    expect(result.current.selectedTaskId).toBeNull()
+
+    rerender({ tasks: [pendingA], status: 'running' })
+    expect(result.current.selectedTaskId).toBeNull()
+
+    rerender({ tasks: [pendingA], status: 'idle' })
+    expect(result.current.selectedTaskId).toBeNull()
+  })
+
+  it('invalidates definitively while paused and stays null after the task becomes eligible again', () => {
+    const { result, rerender } = renderSelection([pendingA], 'idle')
+
+    act(() => {
+      result.current.selectTask('task-1')
+    })
+
+    rerender({ tasks: [pendingA], status: 'paused' })
+    rerender({ tasks: [completedA], status: 'paused' })
+    expect(result.current.selectedTaskId).toBeNull()
+
+    rerender({ tasks: [pendingA], status: 'paused' })
+    expect(result.current.selectedTaskId).toBeNull()
+  })
+
+  it('converges to a null internal selection under StrictMode double-rendering without restoring the reopened task', () => {
+    const { result, rerender } = renderHook(
+      ({ tasks, status }: { tasks: EssentialTask[]; status: 'idle' | 'running' | 'paused' | 'completed' }) =>
+        useFocusTaskSelection(tasks, status),
+      {
+        initialProps: { tasks: [pendingA], status: 'idle' as const },
+        wrapper: StrictMode,
+      },
+    )
+
+    act(() => {
+      result.current.selectTask('task-1')
+    })
+    expect(result.current.selectedTaskId).toBe('task-1')
+
+    rerender({ tasks: [completedA], status: 'idle' })
+    expect(result.current.selectedTaskId).toBeNull()
+
+    rerender({ tasks: [pendingA], status: 'idle' })
+    expect(result.current.selectedTaskId).toBeNull()
+    expect(result.current.selectedTask).toBeNull()
   })
 })
