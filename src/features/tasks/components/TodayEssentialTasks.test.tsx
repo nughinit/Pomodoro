@@ -20,6 +20,26 @@ function addTaskByEnter(title: string) {
   fireEvent.submit(getForm())
 }
 
+function getCompleteCheckbox(title: string) {
+  return screen.getByRole('checkbox', { name: `Concluir tarefa "${title}"` })
+}
+
+function getReopenCheckbox(title: string) {
+  return screen.getByRole('checkbox', { name: `Reabrir tarefa "${title}"` })
+}
+
+function getRemoveButton(title: string) {
+  return screen.getByRole('button', { name: `Remover tarefa "${title}"` })
+}
+
+function getCancelButton() {
+  return screen.getByRole('button', { name: 'Cancelar' })
+}
+
+function getConfirmRemoveButton() {
+  return screen.getByRole('button', { name: 'Confirmar remoção' })
+}
+
 describe('TodayEssentialTasks', () => {
   it('shows the empty state and no list initially', () => {
     render(<TodayEssentialTasks />)
@@ -96,5 +116,151 @@ describe('TodayEssentialTasks', () => {
     addTaskByButton('Task two')
 
     expect(screen.getByText('0 de 4 tarefas concluídas')).toBeInTheDocument()
+  })
+
+  it('completes a pending task and reflects the control, visible text, and progress', () => {
+    render(<TodayEssentialTasks />)
+
+    addTaskByButton('Write the report')
+
+    fireEvent.click(getCompleteCheckbox('Write the report'))
+
+    expect(getReopenCheckbox('Write the report')).toBeChecked()
+    expect(screen.getByText('Concluída')).toBeInTheDocument()
+    expect(screen.getByText('1 de 4 tarefas concluídas')).toBeInTheDocument()
+  })
+
+  it('reopens a completed task and reflects the progress', () => {
+    render(<TodayEssentialTasks />)
+
+    addTaskByButton('Write the report')
+    fireEvent.click(getCompleteCheckbox('Write the report'))
+
+    fireEvent.click(getReopenCheckbox('Write the report'))
+
+    expect(getCompleteCheckbox('Write the report')).not.toBeChecked()
+    expect(screen.queryByText('Concluída')).not.toBeInTheDocument()
+    expect(screen.getByText('0 de 4 tarefas concluídas')).toBeInTheDocument()
+  })
+
+  it('requests removal without removing the task immediately', () => {
+    render(<TodayEssentialTasks />)
+
+    addTaskByButton('Write the report')
+
+    fireEvent.click(getRemoveButton('Write the report'))
+
+    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+    expect(
+      screen.getByText('Remover "Write the report"? Essa ação não pode ser desfeita.'),
+    ).toBeInTheDocument()
+    expect(getCancelButton()).toHaveFocus()
+  })
+
+  it('cancels removal, preserving the task and returning focus to its remove button', () => {
+    render(<TodayEssentialTasks />)
+
+    addTaskByButton('Write the report')
+    fireEvent.click(getRemoveButton('Write the report'))
+
+    fireEvent.click(getCancelButton())
+
+    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: 'Cancelar' })).not.toBeInTheDocument()
+    expect(getRemoveButton('Write the report')).toHaveFocus()
+  })
+
+  it('confirms removal, removing exactly the chosen task and moving focus to the title input', () => {
+    render(<TodayEssentialTasks />)
+
+    addTaskByButton('Write the report')
+    addTaskByButton('Plan the day')
+    fireEvent.click(getRemoveButton('Write the report'))
+
+    fireEvent.click(getConfirmRemoveButton())
+
+    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+    expect(screen.queryByText('Write the report')).not.toBeInTheDocument()
+    expect(screen.getByText('Plan the day')).toBeInTheDocument()
+    expect(getInput()).toHaveFocus()
+  })
+
+  it('keeps only one removal confirmation open at a time', () => {
+    render(<TodayEssentialTasks />)
+
+    addTaskByButton('Write the report')
+    addTaskByButton('Plan the day')
+
+    fireEvent.click(getRemoveButton('Write the report'))
+    expect(
+      screen.getByText('Remover "Write the report"? Essa ação não pode ser desfeita.'),
+    ).toBeInTheDocument()
+
+    fireEvent.click(getRemoveButton('Plan the day'))
+
+    expect(
+      screen.queryByText('Remover "Write the report"? Essa ação não pode ser desfeita.'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText('Remover "Plan the day"? Essa ação não pode ser desfeita.'),
+    ).toBeInTheDocument()
+  })
+
+  it('removing a completed task updates the progress', () => {
+    render(<TodayEssentialTasks />)
+
+    addTaskByButton('Write the report')
+    fireEvent.click(getCompleteCheckbox('Write the report'))
+    expect(screen.getByText('1 de 4 tarefas concluídas')).toBeInTheDocument()
+
+    fireEvent.click(getRemoveButton('Write the report'))
+    fireEvent.click(getConfirmRemoveButton())
+
+    expect(screen.getByText('0 de 4 tarefas concluídas')).toBeInTheDocument()
+  })
+
+  it('re-enables the creation controls after removing one of four tasks and allows adding a new one', () => {
+    render(<TodayEssentialTasks />)
+
+    addTaskByButton('Task one')
+    addTaskByButton('Task two')
+    addTaskByButton('Task three')
+    addTaskByButton('Task four')
+
+    expect(getInput()).toBeDisabled()
+
+    fireEvent.click(getRemoveButton('Task two'))
+    fireEvent.click(getConfirmRemoveButton())
+
+    expect(getInput()).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Adicionar' })).not.toBeDisabled()
+    expect(screen.queryByText('Você atingiu o limite de quatro tarefas essenciais para hoje.')).not.toBeInTheDocument()
+
+    addTaskByButton('Task five')
+
+    expect(screen.getAllByRole('listitem')).toHaveLength(4)
+    expect(screen.getByText('Task five')).toBeInTheDocument()
+  })
+
+  it('shows the empty state again after removing the last task', () => {
+    render(<TodayEssentialTasks />)
+
+    addTaskByButton('Only task')
+    fireEvent.click(getRemoveButton('Only task'))
+    fireEvent.click(getConfirmRemoveButton())
+
+    expect(screen.queryByRole('list')).not.toBeInTheDocument()
+    expect(
+      screen.getByText('Nenhuma tarefa essencial ainda. Adicione a primeira tarefa abaixo para planejar o seu dia.'),
+    ).toBeInTheDocument()
+  })
+
+  it('gives every task control an accessible name that includes the task title', () => {
+    render(<TodayEssentialTasks />)
+
+    addTaskByButton('Write the report')
+
+    expect(screen.getByRole('checkbox', { name: 'Concluir tarefa "Write the report"' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Remover tarefa "Write the report"' })).toBeInTheDocument()
   })
 })
