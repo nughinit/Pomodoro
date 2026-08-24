@@ -14,4 +14,15 @@ describe('App', () => {
       screen.getByText('Do plano ao feito, no seu ritmo.'),
     ).toBeInTheDocument()
   })
+
+  it('renders the Hoje section before the focus timer in reading order', () => {
+    render(<App />)
+
+    const todaySection = screen.getByRole('heading', { name: 'Hoje' })
+    const timer = screen.getByLabelText('Cronômetro de foco')
+
+    expect(
+      todaySection.compareDocumentPosition(timer) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
 })

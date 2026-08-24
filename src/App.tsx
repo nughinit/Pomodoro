@@ -1,4 +1,5 @@
 import './App.css'
+import { TodayEssentialTasks } from './features/tasks/components/TodayEssentialTasks'
 import { FocusTimer } from './features/timer/components/FocusTimer'
 
 function App() {
@@ -8,6 +9,7 @@ function App() {
         <h1 className="app-shell__title">VIA</h1>
         <p className="app-shell__tagline">Do plano ao feito, no seu ritmo.</p>
       </div>
+      <TodayEssentialTasks />
       <FocusTimer />
     </main>
   )
