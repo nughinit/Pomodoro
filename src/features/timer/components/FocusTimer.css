@@ -1,0 +1,109 @@
+.focus-timer {
+  background: var(--mallow-surface-raised);
+  border-radius: var(--mallow-radius-lg);
+  box-shadow: var(--mallow-shadow-raised);
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.focus-timer__session {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mallow-mint);
+}
+
+.focus-timer__time {
+  margin: 0;
+  padding: 24px 32px;
+  border-radius: var(--mallow-radius-lg);
+  background: var(--mallow-canvas);
+  box-shadow: var(--mallow-shadow-pressed);
+  color: var(--mallow-ink);
+  font-size: 64px;
+  line-height: 64px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-timer__status {
+  margin: 0;
+  min-height: 22px;
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 600;
+  color: var(--mallow-ink);
+}
+
+.focus-timer__actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.focus-timer__button {
+  flex: 1;
+  min-height: 48px;
+  min-width: 44px;
+  padding: 0 24px;
+  border: none;
+  border-radius: var(--mallow-radius-md);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.focus-timer__button--primary {
+  background: var(--mallow-ink);
+  color: var(--mallow-surface-raised);
+  box-shadow: var(--mallow-shadow-raised);
+}
+
+.focus-timer__button--secondary {
+  background: var(--mallow-surface);
+  color: var(--mallow-ink);
+}
+
+.focus-timer__button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.focus-timer__button:focus-visible {
+  outline: 2px solid var(--mallow-ink);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .focus-timer__button {
+    transition: transform 120ms ease, box-shadow 120ms ease;
+  }
+
+  .focus-timer__button--primary:active {
+    transform: translateY(1px);
+  }
+}
+
+@media (max-width: 480px) {
+  .focus-timer {
+    padding: 24px;
+  }
+
+  .focus-timer__time {
+    font-size: 48px;
+    line-height: 48px;
+    padding: 16px 24px;
+  }
+
+  .focus-timer__actions {
+    flex-direction: column;
+  }
+}

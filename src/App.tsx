@@ -1,4 +1,5 @@
 import './App.css'
+import { FocusTimer } from './features/timer/components/FocusTimer'
 
 function App() {
   return (
@@ -7,6 +8,7 @@ function App() {
         <h1 className="app-shell__title">VIA</h1>
         <p className="app-shell__tagline">Do plano ao feito, no seu ritmo.</p>
       </div>
+      <FocusTimer />
     </main>
   )
 }
