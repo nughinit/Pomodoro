@@ -1,12 +1,12 @@
-# Pomodoro
+# VIA
 
-Reconstruction of an earlier study project as a production-quality focus timer.
+Reconstruction of an earlier study project as a production-quality agenda de foco with an integrated Pomodoro method. VIA is the product; Pomodoro names the focus method it integrates, not the product itself.
 
 > Status: planning and foundations.
 
 ## Goal
 
-Build an accessible, reliable and well-tested Pomodoro application while documenting the technical decisions behind it.
+Build an accessible, reliable and well-tested focus agenda application while documenting the technical decisions behind it.
 
 ## Planned stack
 
