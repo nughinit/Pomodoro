@@ -123,4 +123,68 @@ describe('FocusTimer', () => {
 
     expect(clearIntervalSpy).toHaveBeenCalled()
   })
+
+  it('clears the interval when reset', () => {
+    render(<FocusTimer />)
+
+    act(() => clickPrimaryButton())
+    const clearIntervalSpy = vi.spyOn(window, 'clearInterval')
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Reiniciar' })))
+
+    expect(clearIntervalSpy).toHaveBeenCalled()
+  })
+
+  it('clears the interval when the session completes', () => {
+    render(<FocusTimer />)
+
+    act(() => clickPrimaryButton())
+    const clearIntervalSpy = vi.spyOn(window, 'clearInterval')
+    act(() => {
+      vi.advanceTimersByTime(25 * 60 * 1000)
+    })
+
+    expect(clearIntervalSpy).toHaveBeenCalled()
+  })
+
+  it('creates only one interval for an uninterrupted running period, even across many ticks', () => {
+    const setIntervalSpy = vi.spyOn(window, 'setInterval')
+    render(<FocusTimer />)
+
+    act(() => clickPrimaryButton())
+    expect(setIntervalSpy).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      vi.advanceTimersByTime(10_000)
+    })
+    act(() => {
+      vi.advanceTimersByTime(10_000)
+    })
+    act(() => {
+      vi.advanceTimersByTime(10_000)
+    })
+
+    expect(setIntervalSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('restarts a fresh focus session immediately after completion', () => {
+    render(<FocusTimer />)
+
+    act(() => clickPrimaryButton())
+    act(() => {
+      vi.advanceTimersByTime(25 * 60 * 1000)
+    })
+
+    expect(screen.getByRole('button', { name: 'Iniciar novamente' })).toBeInTheDocument()
+
+    act(() => clickPrimaryButton())
+
+    expect(screen.getByLabelText('Tempo restante 25:00')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(60_000)
+    })
+
+    expect(screen.getByLabelText('Tempo restante 24:00')).toBeInTheDocument()
+  })
 })
