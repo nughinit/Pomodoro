@@ -2,10 +2,28 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FocusTimer } from './FocusTimer'
 import { useFocusTimer } from '../hooks/useFocusTimer'
+import type { EssentialTask } from '../../tasks/domain/types'
 
-function FocusTimerHarness() {
+const DEFAULT_SELECTED_TASK: EssentialTask = { id: 'task-1', title: 'Write the report', status: 'pending' }
+
+function FocusTimerHarness({
+  selectedTask = DEFAULT_SELECTED_TASK,
+  clearSelection = () => {},
+  canChangeSelection = true,
+}: {
+  selectedTask?: EssentialTask | null
+  clearSelection?: () => void
+  canChangeSelection?: boolean
+} = {}) {
   const timer = useFocusTimer()
-  return <FocusTimer {...timer} />
+  return (
+    <FocusTimer
+      {...timer}
+      selectedTask={selectedTask}
+      clearSelection={clearSelection}
+      canChangeSelection={canChangeSelection}
+    />
+  )
 }
 
 function clickPrimaryButton() {
@@ -192,5 +210,125 @@ describe('FocusTimer', () => {
     })
 
     expect(screen.getByLabelText('Tempo restante 24:00')).toBeInTheDocument()
+  })
+})
+
+describe('FocusTimer focus task region', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 0, 1, 9, 0, 0))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('shows guidance and no title when there is no selected task', () => {
+    render(<FocusTimerHarness selectedTask={null} />)
+
+    expect(screen.getByText('Tarefa em foco')).toBeInTheDocument()
+    expect(screen.getByText('Escolha uma tarefa essencial para iniciar.')).toBeInTheDocument()
+  })
+
+  it('disables Iniciar when there is no selected task', () => {
+    render(<FocusTimerHarness selectedTask={null} />)
+
+    expect(screen.getByRole('button', { name: 'Iniciar' })).toBeDisabled()
+  })
+
+  it('shows the selected task title', () => {
+    render(<FocusTimerHarness selectedTask={{ id: 'task-1', title: 'Write the report', status: 'pending' }} />)
+
+    expect(screen.getByText('Write the report')).toBeInTheDocument()
+    expect(screen.queryByText('Escolha uma tarefa essencial para iniciar.')).not.toBeInTheDocument()
+  })
+
+  it('enables Iniciar when a task is selected', () => {
+    render(<FocusTimerHarness selectedTask={{ id: 'task-1', title: 'Write the report', status: 'pending' }} />)
+
+    expect(screen.getByRole('button', { name: 'Iniciar' })).not.toBeDisabled()
+  })
+
+  it('calls clearSelection when unlink is clicked', () => {
+    const clearSelection = vi.fn()
+    render(
+      <FocusTimerHarness
+        selectedTask={{ id: 'task-1', title: 'Write the report', status: 'pending' }}
+        clearSelection={clearSelection}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Desvincular tarefa do foco' }))
+
+    expect(clearSelection).toHaveBeenCalledTimes(1)
+  })
+
+  it('disables the unlink button when the selection is locked', () => {
+    render(
+      <FocusTimerHarness
+        selectedTask={{ id: 'task-1', title: 'Write the report', status: 'pending' }}
+        canChangeSelection={false}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Desvincular tarefa do foco' })).toBeDisabled()
+  })
+
+  it('keeps Pausar enabled even if the selection is invalidated while running', () => {
+    const { rerender } = render(
+      <FocusTimerHarness selectedTask={{ id: 'task-1', title: 'Write the report', status: 'pending' }} />,
+    )
+
+    act(() => clickPrimaryButton())
+    expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
+
+    rerender(<FocusTimerHarness selectedTask={null} canChangeSelection={false} />)
+
+    expect(screen.getByRole('button', { name: 'Pausar' })).not.toBeDisabled()
+  })
+
+  it('keeps Continuar enabled even if the selection is invalidated while paused', () => {
+    const { rerender } = render(
+      <FocusTimerHarness selectedTask={{ id: 'task-1', title: 'Write the report', status: 'pending' }} />,
+    )
+
+    act(() => clickPrimaryButton())
+    act(() => clickPrimaryButton())
+    expect(screen.getByRole('button', { name: 'Continuar' })).toBeInTheDocument()
+
+    rerender(<FocusTimerHarness selectedTask={null} canChangeSelection={false} />)
+
+    expect(screen.getByRole('button', { name: 'Continuar' })).not.toBeDisabled()
+  })
+
+  it('does not call clearSelection when Reiniciar is clicked', () => {
+    const clearSelection = vi.fn()
+    render(
+      <FocusTimerHarness
+        selectedTask={{ id: 'task-1', title: 'Write the report', status: 'pending' }}
+        clearSelection={clearSelection}
+      />,
+    )
+
+    act(() => clickPrimaryButton())
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Reiniciar' })))
+
+    expect(clearSelection).not.toHaveBeenCalled()
+  })
+
+  it('disables Iniciar novamente in the completed state when there is no selected task', () => {
+    const { rerender } = render(
+      <FocusTimerHarness selectedTask={{ id: 'task-1', title: 'Write the report', status: 'pending' }} />,
+    )
+
+    act(() => clickPrimaryButton())
+    act(() => {
+      vi.advanceTimersByTime(25 * 60 * 1000)
+    })
+    expect(screen.getByRole('button', { name: 'Iniciar novamente' })).toBeInTheDocument()
+
+    rerender(<FocusTimerHarness selectedTask={null} />)
+
+    expect(screen.getByRole('button', { name: 'Iniciar novamente' })).toBeDisabled()
   })
 })

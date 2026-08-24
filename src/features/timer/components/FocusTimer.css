@@ -21,6 +21,68 @@
   color: var(--mallow-mint);
 }
 
+.focus-timer__focus-task {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: var(--mallow-radius-sm);
+  background: var(--mallow-canvas);
+  box-shadow: var(--mallow-shadow-pressed);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  box-sizing: border-box;
+}
+
+.focus-timer__focus-label {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mallow-muted);
+}
+
+.focus-timer__focus-title {
+  margin: 0;
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+  color: var(--mallow-ink);
+  overflow-wrap: anywhere;
+}
+
+.focus-timer__focus-empty {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--mallow-muted);
+}
+
+.focus-timer__unlink {
+  margin-top: 4px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--mallow-muted);
+  border-radius: var(--mallow-radius-sm);
+  background: var(--mallow-surface);
+  color: var(--mallow-ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.focus-timer__unlink:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.focus-timer__unlink:focus-visible {
+  outline: 2px solid var(--mallow-ink);
+  outline-offset: 3px;
+}
+
 .focus-timer__time {
   margin: 0;
   padding: 24px 32px;
@@ -105,5 +167,9 @@
 
   .focus-timer__actions {
     flex-direction: column;
+  }
+
+  .focus-timer__unlink {
+    width: 100%;
   }
 }

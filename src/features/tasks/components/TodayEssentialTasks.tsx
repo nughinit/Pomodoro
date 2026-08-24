@@ -8,7 +8,13 @@ import './TodayEssentialTasks.css'
 const LIMIT_MESSAGE = 'Você atingiu o limite de quatro tarefas essenciais para hoje.'
 const EMPTY_TITLE_MESSAGE = 'Digite um título para adicionar a tarefa.'
 
-export type TodayEssentialTasksProps = UseEssentialTasksResult
+export interface TodayEssentialTasksFocusProps {
+  selectedTaskId: string | null
+  selectTask: (id: string) => void
+  canChangeSelection: boolean
+}
+
+export type TodayEssentialTasksProps = UseEssentialTasksResult & TodayEssentialTasksFocusProps
 
 export function TodayEssentialTasks({
   tasks,
@@ -18,6 +24,9 @@ export function TodayEssentialTasks({
   removeTask,
   completedCount,
   isLimitReached,
+  selectedTaskId,
+  selectTask,
+  canChangeSelection,
 }: TodayEssentialTasksProps) {
   const [title, setTitle] = useState('')
   const [feedback, setFeedback] = useState('')
@@ -126,6 +135,7 @@ export function TodayEssentialTasks({
             {tasks.map((task) => {
               const isCompleted = task.status === 'completed'
               const isConfirming = confirmingId === task.id
+              const isSelectedForFocus = selectedTaskId === task.id
               const questionId = `today-task-confirm-question-${task.id}`
 
               return (
@@ -154,6 +164,26 @@ export function TodayEssentialTasks({
                     </label>
                     {isCompleted && (
                       <span className="today-tasks__status-badge">Concluída</span>
+                    )}
+                    {!isCompleted && (
+                      <button
+                        type="button"
+                        className={
+                          isSelectedForFocus
+                            ? 'today-tasks__focus-select today-tasks__focus-select--selected'
+                            : 'today-tasks__focus-select'
+                        }
+                        aria-pressed={isSelectedForFocus}
+                        aria-label={
+                          isSelectedForFocus
+                            ? `Tarefa "${task.title}" selecionada para foco`
+                            : `Selecionar tarefa "${task.title}" para foco`
+                        }
+                        disabled={!canChangeSelection}
+                        onClick={() => selectTask(task.id)}
+                      >
+                        {isSelectedForFocus ? 'Selecionada' : 'Selecionar foco'}
+                      </button>
                     )}
                     <button
                       type="button"

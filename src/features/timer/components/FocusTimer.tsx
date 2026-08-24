@@ -1,5 +1,6 @@
 import { formatTime } from '../domain/formatTime'
 import type { UseFocusTimerResult } from '../hooks/useFocusTimer'
+import type { EssentialTask } from '../../tasks/domain/types'
 import './FocusTimer.css'
 
 const SESSION_LABELS = {
@@ -28,7 +29,13 @@ function getPrimaryLabel(status: string): string {
   }
 }
 
-export type FocusTimerProps = UseFocusTimerResult
+export interface FocusTimerFocusTaskProps {
+  selectedTask: EssentialTask | null
+  clearSelection: () => void
+  canChangeSelection: boolean
+}
+
+export type FocusTimerProps = UseFocusTimerResult & FocusTimerFocusTaskProps
 
 export function FocusTimer({
   state,
@@ -37,6 +44,9 @@ export function FocusTimer({
   handlePause,
   handleResume,
   handleReset,
+  selectedTask,
+  clearSelection,
+  canChangeSelection,
 }: FocusTimerProps) {
   const handlePrimaryAction = () => {
     switch (state.status) {
@@ -56,10 +66,31 @@ export function FocusTimer({
   }
 
   const statusMessage = STATUS_LABELS[state.status]
+  const requiresSelection = state.status === 'idle' || state.status === 'completed'
+  const isPrimaryDisabled = requiresSelection && selectedTask === null
 
   return (
     <section className="focus-timer" aria-label="Cronômetro de foco">
       <p className="focus-timer__session">{SESSION_LABELS[state.sessionType]}</p>
+
+      <div className="focus-timer__focus-task" aria-live="polite">
+        <p className="focus-timer__focus-label">Tarefa em foco</p>
+        {selectedTask ? (
+          <p className="focus-timer__focus-title">{selectedTask.title}</p>
+        ) : (
+          <p className="focus-timer__focus-empty">Escolha uma tarefa essencial para iniciar.</p>
+        )}
+        {selectedTask && (
+          <button
+            type="button"
+            className="focus-timer__unlink"
+            onClick={clearSelection}
+            disabled={!canChangeSelection}
+          >
+            Desvincular tarefa do foco
+          </button>
+        )}
+      </div>
 
       <p className="focus-timer__time" aria-label={`Tempo restante ${formatTime(remainingMs)}`}>
         {formatTime(remainingMs)}
@@ -70,7 +101,12 @@ export function FocusTimer({
       </p>
 
       <div className="focus-timer__actions">
-        <button type="button" className="focus-timer__button focus-timer__button--primary" onClick={handlePrimaryAction}>
+        <button
+          type="button"
+          className="focus-timer__button focus-timer__button--primary"
+          onClick={handlePrimaryAction}
+          disabled={isPrimaryDisabled}
+        >
           {getPrimaryLabel(state.status)}
         </button>
         <button

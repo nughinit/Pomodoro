@@ -139,6 +139,29 @@
   white-space: nowrap;
 }
 
+.today-tasks__focus-select {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--mallow-muted);
+  border-radius: var(--mallow-radius-sm);
+  background: var(--mallow-surface);
+  color: var(--mallow-ink);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.today-tasks__focus-select--selected {
+  background: var(--mallow-ink);
+  color: var(--mallow-surface-raised);
+  border-color: var(--mallow-ink);
+}
+
+.today-tasks__focus-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .today-tasks__remove {
   margin-left: auto;
   min-height: 36px;
@@ -152,6 +175,7 @@
   cursor: pointer;
 }
 
+.today-tasks__focus-select:focus-visible,
 .today-tasks__remove:focus-visible,
 .today-tasks__cancel:focus-visible,
 .today-tasks__confirm-remove:focus-visible {
@@ -314,6 +338,7 @@
     align-items: stretch;
   }
 
+  .today-tasks__focus-select,
   .today-tasks__remove {
     margin-left: 0;
     width: 100%;

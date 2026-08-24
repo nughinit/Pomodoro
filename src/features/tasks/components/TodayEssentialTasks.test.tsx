@@ -1,12 +1,21 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { TodayEssentialTasks } from './TodayEssentialTasks'
 import { useEssentialTasks } from '../hooks/useEssentialTasks'
 import { ESSENTIAL_TASKS_STORAGE_KEY, toLocalDateString } from '../storage/essentialTasksStorage'
 
-function TodayEssentialTasksHarness() {
+function TodayEssentialTasksHarness({ canChangeSelection = true }: { canChangeSelection?: boolean } = {}) {
   const tasks = useEssentialTasks()
-  return <TodayEssentialTasks {...tasks} />
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+  return (
+    <TodayEssentialTasks
+      {...tasks}
+      selectedTaskId={selectedTaskId}
+      selectTask={setSelectedTaskId}
+      canChangeSelection={canChangeSelection}
+    />
+  )
 }
 
 function getInput() {
@@ -286,6 +295,101 @@ describe('TodayEssentialTasks', () => {
 
     expect(screen.getByRole('checkbox', { name: 'Concluir tarefa "Write the report"' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Remover tarefa "Write the report"' })).toBeInTheDocument()
+  })
+})
+
+function getFocusSelectButton(title: string) {
+  return screen.getByRole('button', { name: `Selecionar tarefa "${title}" para foco` })
+}
+
+function getFocusSelectedButton(title: string) {
+  return screen.getByRole('button', { name: `Tarefa "${title}" selecionada para foco` })
+}
+
+describe('TodayEssentialTasks focus selection', () => {
+  it('gives a pending task a native selection button with the expected accessible name', () => {
+    render(<TodayEssentialTasksHarness />)
+
+    addTaskByButton('Write the report')
+
+    const button = getFocusSelectButton('Write the report')
+    expect(button).toBeInTheDocument()
+    expect(button).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('does not render an active selection control for a completed task', () => {
+    render(<TodayEssentialTasksHarness />)
+
+    addTaskByButton('Write the report')
+    fireEvent.click(getCompleteCheckbox('Write the report'))
+
+    expect(
+      screen.queryByRole('button', { name: /selecionar tarefa "Write the report" para foco/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /tarefa "Write the report" selecionada para foco/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('marks the selected task with aria-pressed true and switches the accessible name', () => {
+    render(<TodayEssentialTasksHarness />)
+
+    addTaskByButton('Write the report')
+    fireEvent.click(getFocusSelectButton('Write the report'))
+
+    const button = getFocusSelectedButton('Write the report')
+    expect(button).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('keeps unselected pending tasks with aria-pressed false', () => {
+    render(<TodayEssentialTasksHarness />)
+
+    addTaskByButton('Write the report')
+    addTaskByButton('Plan the day')
+    fireEvent.click(getFocusSelectButton('Write the report'))
+
+    expect(getFocusSelectButton('Plan the day')).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('calls selectTask with the clicked task id', () => {
+    render(<TodayEssentialTasksHarness />)
+
+    addTaskByButton('Write the report')
+    fireEvent.click(getFocusSelectButton('Write the report'))
+
+    expect(getFocusSelectedButton('Write the report')).toBeInTheDocument()
+  })
+
+  it('disables every selection button when canChangeSelection is false', () => {
+    render(<TodayEssentialTasksHarness canChangeSelection={false} />)
+
+    addTaskByButton('Write the report')
+
+    expect(getFocusSelectButton('Write the report')).toBeDisabled()
+  })
+
+  it('shows a short text indicator for the selected task that does not rely on color alone', () => {
+    render(<TodayEssentialTasksHarness />)
+
+    addTaskByButton('Write the report')
+    fireEvent.click(getFocusSelectButton('Write the report'))
+
+    expect(screen.getByText('Selecionada')).toBeInTheDocument()
+  })
+
+  it('keeps completion and removal working alongside focus selection', () => {
+    render(<TodayEssentialTasksHarness />)
+
+    addTaskByButton('Write the report')
+    fireEvent.click(getFocusSelectButton('Write the report'))
+    fireEvent.click(getCompleteCheckbox('Write the report'))
+
+    expect(getReopenCheckbox('Write the report')).toBeChecked()
+
+    fireEvent.click(getRemoveButton('Write the report'))
+    fireEvent.click(getConfirmRemoveButton())
+
+    expect(screen.queryByText('Write the report')).not.toBeInTheDocument()
   })
 })
 

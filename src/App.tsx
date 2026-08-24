@@ -8,7 +8,7 @@ import { useFocusTaskSelection } from './features/focus/hooks/useFocusTaskSelect
 function App() {
   const tasks = useEssentialTasks()
   const timer = useFocusTimer()
-  useFocusTaskSelection(tasks.tasks, timer.state.status)
+  const selection = useFocusTaskSelection(tasks.tasks, timer.state.status)
 
   return (
     <main className="app-shell">
@@ -24,6 +24,9 @@ function App() {
         removeTask={tasks.removeTask}
         completedCount={tasks.completedCount}
         isLimitReached={tasks.isLimitReached}
+        selectedTaskId={selection.selectedTaskId}
+        selectTask={selection.selectTask}
+        canChangeSelection={selection.canChangeSelection}
       />
       <FocusTimer
         state={timer.state}
@@ -32,6 +35,9 @@ function App() {
         handlePause={timer.handlePause}
         handleResume={timer.handleResume}
         handleReset={timer.handleReset}
+        selectedTask={selection.selectedTask}
+        clearSelection={selection.clearSelection}
+        canChangeSelection={selection.canChangeSelection}
       />
     </main>
   )
