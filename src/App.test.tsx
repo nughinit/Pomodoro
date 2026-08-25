@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
-import { ESSENTIAL_TASKS_STORAGE_KEY, toLocalDateString } from './features/tasks/storage/essentialTasksStorage'
+import { AGENDA_STORAGE_KEY } from './features/agenda/storage/agendaStorage'
+import { ESSENTIAL_TASKS_STORAGE_KEY } from './features/tasks/storage/essentialTasksStorage'
 
 describe('App', () => {
   it('renders the VIA heading and tagline inside a main region', () => {
@@ -27,50 +28,48 @@ describe('App', () => {
     ).toBeTruthy()
   })
 
-  it('renders the tasks section and focus timer inside a single workspace wrapper', () => {
+  it('renders the agenda section and focus timer inside a single workspace wrapper', () => {
     const { container } = render(<App />)
 
     const workspace = container.querySelector('.app-shell__workspace')
     expect(workspace).toBeInTheDocument()
     expect(workspace?.children).toHaveLength(2)
 
-    const todaySection = screen.getByRole('heading', { name: 'Hoje' }).closest('section')
+    const agendaSection = screen.getByRole('heading', { name: 'Hoje' }).closest('section')
     const timerSection = screen.getByLabelText('Cronômetro de foco')
 
-    expect(workspace).toContainElement(todaySection)
+    expect(workspace).toContainElement(agendaSection)
     expect(workspace).toContainElement(timerSection)
-    expect(workspace?.children[0]).toBe(todaySection)
+    expect(workspace?.children[0]).toBe(agendaSection)
     expect(workspace?.children[1]).toBe(timerSection)
   })
 
-  it('keeps the h1 -> h2 -> h3 heading hierarchy', () => {
+  it('keeps the h1 -> h2 heading hierarchy', () => {
     render(<App />)
 
     const h1 = screen.getByRole('heading', { level: 1, name: 'VIA' })
     const h2 = screen.getByRole('heading', { level: 2, name: 'Hoje' })
-    const h3 = screen.getByRole('heading', { level: 3, name: 'Tarefas essenciais' })
 
     expect(h1).toBeInTheDocument()
     expect(h2).toBeInTheDocument()
-    expect(h3).toBeInTheDocument()
   })
 })
 
-function addTaskByButton(title: string) {
-  fireEvent.change(screen.getByLabelText('Nova tarefa essencial'), { target: { value: title } })
+function addItemByButton(title: string) {
+  fireEvent.change(screen.getByLabelText('Novo item'), { target: { value: title } })
   fireEvent.click(screen.getByRole('button', { name: 'Adicionar' }))
 }
 
 function getCompleteCheckbox(title: string) {
-  return screen.getByRole('checkbox', { name: `Concluir tarefa "${title}"` })
+  return screen.getByRole('checkbox', { name: `Concluir item "${title}"` })
 }
 
 function getReopenCheckbox(title: string) {
-  return screen.getByRole('checkbox', { name: `Reabrir tarefa "${title}"` })
+  return screen.getByRole('checkbox', { name: `Reabrir item "${title}"` })
 }
 
 function getRemoveButton(title: string) {
-  return screen.getByRole('button', { name: `Remover tarefa "${title}"` })
+  return screen.getByRole('button', { name: `Remover item "${title}"` })
 }
 
 function getConfirmRemoveButton() {
@@ -86,14 +85,14 @@ function clickTimerReset() {
 }
 
 function getFocusSelectButton(title: string) {
-  return screen.getByRole('button', { name: `Selecionar tarefa "${title}" para foco` })
+  return screen.getByRole('button', { name: `Selecionar item "${title}" para foco` })
 }
 
 function getFocusSelectedButton(title: string) {
-  return screen.getByRole('button', { name: `Tarefa "${title}" selecionada para foco` })
+  return screen.getByRole('button', { name: `Item "${title}" selecionado para foco` })
 }
 
-function selectFocusTask(title: string) {
+function selectFocusItem(title: string) {
   fireEvent.click(getFocusSelectButton(title))
 }
 
@@ -101,7 +100,7 @@ function getFocusTimerSection() {
   return screen.getByLabelText('Cronômetro de foco')
 }
 
-function getTaskListItem(title: string) {
+function getAgendaListItem(title: string) {
   return within(screen.getByRole('list')).getByText(title)
 }
 
@@ -109,7 +108,7 @@ function getUnlinkButton() {
   return screen.getByRole('button', { name: 'Desvincular tarefa do foco' })
 }
 
-describe('App integration: task planning and focus timer', () => {
+describe('App integration: agenda planning and focus timer', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 0, 1, 9, 0, 0))
@@ -119,37 +118,36 @@ describe('App integration: task planning and focus timer', () => {
     vi.useRealTimers()
   })
 
-  it('keeps an added task visible after starting the timer', () => {
+  it('keeps an added item visible after starting the timer', () => {
     render(<App />)
 
-    addTaskByButton('Write the report')
-    selectFocusTask('Write the report')
+    addItemByButton('Write the report')
+    selectFocusItem('Write the report')
     act(() => clickTimerPrimaryButton())
 
-    expect(getTaskListItem('Write the report')).toBeInTheDocument()
+    expect(getAgendaListItem('Write the report')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
   })
 
-  it('advances the timer deterministically while the task list stays intact', () => {
+  it('advances the timer deterministically while the agenda list stays intact', () => {
     render(<App />)
 
-    addTaskByButton('Write the report')
-    selectFocusTask('Write the report')
+    addItemByButton('Write the report')
+    selectFocusItem('Write the report')
     act(() => clickTimerPrimaryButton())
     act(() => {
       vi.advanceTimersByTime(60_000)
     })
 
     expect(screen.getByLabelText('Tempo restante 24:00')).toBeInTheDocument()
-    expect(getTaskListItem('Write the report')).toBeInTheDocument()
-    expect(screen.getByText('0 de 4 tarefas concluídas')).toBeInTheDocument()
+    expect(getAgendaListItem('Write the report')).toBeInTheDocument()
   })
 
-  it('completing the selected task while the timer runs updates progress, clears focus, and leaves the timer running', () => {
+  it('completing the selected item while the timer runs clears focus and leaves the timer running', () => {
     render(<App />)
 
-    addTaskByButton('Write the report')
-    selectFocusTask('Write the report')
+    addItemByButton('Write the report')
+    selectFocusItem('Write the report')
     act(() => clickTimerPrimaryButton())
     act(() => {
       vi.advanceTimersByTime(60_000)
@@ -157,7 +155,6 @@ describe('App integration: task planning and focus timer', () => {
 
     fireEvent.click(getCompleteCheckbox('Write the report'))
 
-    expect(screen.getByText('1 de 4 tarefas concluídas')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
     expect(screen.getByLabelText('Tempo restante 24:00')).toBeInTheDocument()
     expect(
@@ -171,13 +168,13 @@ describe('App integration: task planning and focus timer', () => {
     expect(screen.getByLabelText('Tempo restante 23:00')).toBeInTheDocument()
   })
 
-  it('pausing or resetting the timer does not change task state or progress', () => {
+  it('pausing or resetting the timer does not change item state', () => {
     render(<App />)
 
-    addTaskByButton('Write the report')
+    addItemByButton('Write the report')
     fireEvent.click(getCompleteCheckbox('Write the report'))
-    addTaskByButton('Plan the day')
-    selectFocusTask('Plan the day')
+    addItemByButton('Plan the day')
+    selectFocusItem('Plan the day')
     act(() => clickTimerPrimaryButton())
     act(() => {
       vi.advanceTimersByTime(60_000)
@@ -186,25 +183,23 @@ describe('App integration: task planning and focus timer', () => {
     act(() => clickTimerPrimaryButton())
 
     expect(screen.getByRole('button', { name: 'Continuar' })).toBeInTheDocument()
-    expect(screen.getByText('1 de 4 tarefas concluídas')).toBeInTheDocument()
     expect(
-      screen.queryByRole('checkbox', { name: 'Concluir tarefa "Write the report"' }),
+      screen.queryByRole('checkbox', { name: 'Concluir item "Write the report"' }),
     ).not.toBeInTheDocument()
-    expect(screen.getByRole('checkbox', { name: 'Reabrir tarefa "Write the report"' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Reabrir item "Write the report"' })).toBeChecked()
 
     act(() => clickTimerReset())
 
     expect(screen.getByLabelText('Tempo restante 25:00')).toBeInTheDocument()
-    expect(screen.getByText('1 de 4 tarefas concluídas')).toBeInTheDocument()
-    expect(screen.getByRole('checkbox', { name: 'Reabrir tarefa "Write the report"' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Reabrir item "Write the report"' })).toBeChecked()
   })
 
-  it('removing an unselected task does not alter the running timer status or time', () => {
+  it('removing an unselected item does not alter the running timer status or time', () => {
     render(<App />)
 
-    addTaskByButton('Write the report')
-    addTaskByButton('Plan the day')
-    selectFocusTask('Plan the day')
+    addItemByButton('Write the report')
+    addItemByButton('Plan the day')
+    selectFocusItem('Plan the day')
     act(() => clickTimerPrimaryButton())
     act(() => {
       vi.advanceTimersByTime(60_000)
@@ -214,20 +209,24 @@ describe('App integration: task planning and focus timer', () => {
     fireEvent.click(getConfirmRemoveButton())
 
     expect(screen.queryByText('Write the report')).not.toBeInTheDocument()
-    expect(getTaskListItem('Plan the day')).toBeInTheDocument()
+    expect(getAgendaListItem('Plan the day')).toBeInTheDocument()
     expect(screen.getByLabelText('Tempo restante 24:00')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
   })
 })
 
-function seedTodayRecord(tasks: { id: string; title: string; status: 'pending' | 'completed' }[]) {
+function seedTodayEssentialTasks(tasks: { id: string; title: string; status: 'pending' | 'completed' }[]) {
+  const year = String(new Date().getFullYear()).padStart(4, '0')
+  const month = String(new Date().getMonth() + 1).padStart(2, '0')
+  const day = String(new Date().getDate()).padStart(2, '0')
+
   window.localStorage.setItem(
     ESSENTIAL_TASKS_STORAGE_KEY,
-    JSON.stringify({ version: 1, localDate: toLocalDateString(new Date()), tasks }),
+    JSON.stringify({ version: 1, localDate: `${year}-${month}-${day}`, tasks }),
   )
 }
 
-describe('App integration: essential tasks persistence', () => {
+describe('App integration: agenda persistence', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 0, 1, 9, 0, 0))
@@ -237,8 +236,8 @@ describe('App integration: essential tasks persistence', () => {
     vi.useRealTimers()
   })
 
-  it('hydrates a valid today record on first render while the timer stays idle at 25:00', () => {
-    seedTodayRecord([{ id: 'essential-task-1', title: 'Write report', status: 'completed' }])
+  it('migrates a legacy essential-tasks record into the agenda on first render without erasing it', () => {
+    seedTodayEssentialTasks([{ id: 'essential-task-1', title: 'Write report', status: 'completed' }])
 
     render(<App />)
 
@@ -246,12 +245,14 @@ describe('App integration: essential tasks persistence', () => {
     expect(getReopenCheckbox('Write report')).toBeChecked()
     expect(screen.getByLabelText('Tempo restante 25:00')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Iniciar' })).toBeInTheDocument()
+    expect(window.localStorage.getItem(ESSENTIAL_TASKS_STORAGE_KEY)).not.toBeNull()
+    expect(window.localStorage.getItem(AGENDA_STORAGE_KEY)).not.toBeNull()
   })
 
   it('recovers title and completion state after unmounting and remounting, simulating a reload', () => {
     const { unmount } = render(<App />)
 
-    addTaskByButton('Write the report')
+    addItemByButton('Write the report')
     fireEvent.click(getCompleteCheckbox('Write the report'))
     unmount()
 
@@ -261,60 +262,17 @@ describe('App integration: essential tasks persistence', () => {
     expect(getReopenCheckbox('Write the report')).toBeChecked()
   })
 
-  it('does not show a stored task from another day and does not overwrite that record just by mounting', () => {
-    window.localStorage.setItem(
-      ESSENTIAL_TASKS_STORAGE_KEY,
-      JSON.stringify({
-        version: 1,
-        localDate: '2025-12-31',
-        tasks: [{ id: 'essential-task-1', title: 'Old task', status: 'pending' }],
-      }),
-    )
+  it('renders normally, allows adding an item, and keeps the timer usable when stored JSON is invalid', () => {
+    window.localStorage.setItem(AGENDA_STORAGE_KEY, '{not valid json')
 
     render(<App />)
 
-    expect(screen.queryByText('Old task')).not.toBeInTheDocument()
-    expect(JSON.parse(window.localStorage.getItem(ESSENTIAL_TASKS_STORAGE_KEY)!)).toEqual({
-      version: 1,
-      localDate: '2025-12-31',
-      tasks: [{ id: 'essential-task-1', title: 'Old task', status: 'pending' }],
-    })
-  })
-
-  it('renders normally, allows adding a task, and keeps the timer usable when stored JSON is invalid', () => {
-    window.localStorage.setItem(ESSENTIAL_TASKS_STORAGE_KEY, '{not valid json')
-
-    render(<App />)
-
-    addTaskByButton('Write the report')
+    addItemByButton('Write the report')
     expect(screen.getByText('Write the report')).toBeInTheDocument()
 
-    selectFocusTask('Write the report')
+    selectFocusItem('Write the report')
     act(() => clickTimerPrimaryButton())
     expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
-  })
-
-  it('clears yesterday tasks at local midnight while a running timer keeps advancing untouched', () => {
-    seedTodayRecord([{ id: 'essential-task-1', title: 'Write report', status: 'pending' }])
-    vi.setSystemTime(new Date(2026, 0, 1, 23, 59, 0))
-
-    render(<App />)
-    expect(screen.getByText('Write report')).toBeInTheDocument()
-
-    selectFocusTask('Write report')
-    act(() => clickTimerPrimaryButton())
-    expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
-
-    act(() => {
-      vi.advanceTimersByTime(2 * 60 * 1000)
-    })
-
-    expect(screen.queryByText('Write report')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
-    expect(screen.getByLabelText('Tempo restante 23:00')).toBeInTheDocument()
-    expect(
-      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
-    ).toBeInTheDocument()
   })
 
   it('keeps the timer usable when localStorage access itself fails', () => {
@@ -330,10 +288,10 @@ describe('App integration: essential tasks persistence', () => {
     try {
       render(<App />)
 
-      addTaskByButton('Write the report')
+      addItemByButton('Write the report')
       expect(screen.getByText('Write the report')).toBeInTheDocument()
 
-      selectFocusTask('Write the report')
+      selectFocusItem('Write the report')
       act(() => clickTimerPrimaryButton())
       expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
     } finally {
@@ -344,7 +302,7 @@ describe('App integration: essential tasks persistence', () => {
   })
 })
 
-describe('App integration: focus task selection', () => {
+describe('App integration: focus item selection', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 0, 1, 9, 0, 0))
@@ -354,36 +312,36 @@ describe('App integration: focus task selection', () => {
     vi.useRealTimers()
   })
 
-  it('selecting a pending task shows its title next to the timer and enables Iniciar', () => {
+  it('selecting a pending item shows its title next to the timer and enables Iniciar', () => {
     render(<App />)
 
-    addTaskByButton('Write the report')
+    addItemByButton('Write the report')
     expect(screen.getByRole('button', { name: 'Iniciar' })).toBeDisabled()
 
-    selectFocusTask('Write the report')
+    selectFocusItem('Write the report')
 
     expect(within(getFocusTimerSection()).getByText('Write the report')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Iniciar' })).not.toBeDisabled()
   })
 
-  it('selecting a task does not start the timer automatically', () => {
+  it('selecting an item does not start the timer automatically', () => {
     render(<App />)
 
-    addTaskByButton('Write the report')
-    selectFocusTask('Write the report')
+    addItemByButton('Write the report')
+    selectFocusItem('Write the report')
 
     expect(screen.getByLabelText('Tempo restante 25:00')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Iniciar' })).toBeInTheDocument()
   })
 
-  it('selecting task A then task B while idle switches the focus to B', () => {
+  it('selecting item A then item B while idle switches the focus to B', () => {
     render(<App />)
 
-    addTaskByButton('Write the report')
-    addTaskByButton('Plan the day')
+    addItemByButton('Write the report')
+    addItemByButton('Plan the day')
 
-    selectFocusTask('Write the report')
-    selectFocusTask('Plan the day')
+    selectFocusItem('Write the report')
+    selectFocusItem('Plan the day')
 
     expect(within(getFocusTimerSection()).getByText('Plan the day')).toBeInTheDocument()
     expect(getFocusSelectButton('Write the report')).toHaveAttribute('aria-pressed', 'false')
@@ -393,9 +351,9 @@ describe('App integration: focus task selection', () => {
   it('starting the session blocks every focus selection button', () => {
     render(<App />)
 
-    addTaskByButton('Write the report')
-    addTaskByButton('Plan the day')
-    selectFocusTask('Write the report')
+    addItemByButton('Write the report')
+    addItemByButton('Plan the day')
+    selectFocusItem('Write the report')
 
     act(() => clickTimerPrimaryButton())
 
@@ -406,9 +364,9 @@ describe('App integration: focus task selection', () => {
   it('pausing keeps the focus selection locked', () => {
     render(<App />)
 
-    addTaskByButton('Write the report')
-    addTaskByButton('Plan the day')
-    selectFocusTask('Write the report')
+    addItemByButton('Write the report')
+    addItemByButton('Plan the day')
+    selectFocusItem('Write the report')
 
     act(() => clickTimerPrimaryButton())
     act(() => clickTimerPrimaryButton())
@@ -420,9 +378,9 @@ describe('App integration: focus task selection', () => {
   it('resetting the timer preserves the selection and unlocks switching again', () => {
     render(<App />)
 
-    addTaskByButton('Write the report')
-    addTaskByButton('Plan the day')
-    selectFocusTask('Write the report')
+    addItemByButton('Write the report')
+    addItemByButton('Plan the day')
+    selectFocusItem('Write the report')
 
     act(() => clickTimerPrimaryButton())
     act(() => clickTimerReset())
@@ -430,15 +388,15 @@ describe('App integration: focus task selection', () => {
     expect(within(getFocusTimerSection()).getByText('Write the report')).toBeInTheDocument()
     expect(getFocusSelectButton('Plan the day')).not.toBeDisabled()
 
-    selectFocusTask('Plan the day')
+    selectFocusItem('Plan the day')
     expect(within(getFocusTimerSection()).getByText('Plan the day')).toBeInTheDocument()
   })
 
-  it('completing the selected task while idle clears the focus and disables Iniciar', () => {
+  it('completing the selected item while idle clears the focus and disables Iniciar', () => {
     render(<App />)
 
-    addTaskByButton('Write the report')
-    selectFocusTask('Write the report')
+    addItemByButton('Write the report')
+    selectFocusItem('Write the report')
 
     fireEvent.click(getCompleteCheckbox('Write the report'))
 
@@ -448,11 +406,11 @@ describe('App integration: focus task selection', () => {
     expect(screen.getByRole('button', { name: 'Iniciar' })).toBeDisabled()
   })
 
-  it('removing the selected task clears the focus while the timer stays safe', () => {
+  it('removing the selected item clears the focus while the timer stays safe', () => {
     render(<App />)
 
-    addTaskByButton('Write the report')
-    selectFocusTask('Write the report')
+    addItemByButton('Write the report')
+    selectFocusItem('Write the report')
 
     fireEvent.click(getRemoveButton('Write the report'))
     fireEvent.click(getConfirmRemoveButton())
@@ -464,10 +422,10 @@ describe('App integration: focus task selection', () => {
     expect(screen.getByLabelText('Tempo restante 25:00')).toBeInTheDocument()
   })
 
-  it('reopening a completed task does not select it automatically', () => {
+  it('reopening a completed item does not select it automatically', () => {
     render(<App />)
 
-    addTaskByButton('Write the report')
+    addItemByButton('Write the report')
     fireEvent.click(getCompleteCheckbox('Write the report'))
 
     fireEvent.click(getReopenCheckbox('Write the report'))
@@ -478,28 +436,31 @@ describe('App integration: focus task selection', () => {
     expect(getFocusSelectButton('Write the report')).toHaveAttribute('aria-pressed', 'false')
   })
 
-  it('a local day change removes the old focus even though the task list keeps updating', () => {
-    seedTodayRecord([{ id: 'essential-task-1', title: 'Write report', status: 'pending' }])
-    vi.setSystemTime(new Date(2026, 0, 1, 23, 59, 0))
-
+  it('changing the selected date removes the old focus even though the agenda keeps updating', () => {
     render(<App />)
-    selectFocusTask('Write report')
-    expect(within(getFocusTimerSection()).getByText('Write report')).toBeInTheDocument()
 
-    act(() => {
-      vi.advanceTimersByTime(2 * 60 * 1000)
-    })
+    addItemByButton('Write the report')
+    selectFocusItem('Write the report')
+    expect(within(getFocusTimerSection()).getByText('Write the report')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Próximo dia' }))
+
+    expect(
+      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dia anterior' }))
 
     expect(
       within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
     ).toBeInTheDocument()
   })
 
-  it('persists tasks without persisting the selection, so a remount recovers tasks but starts unselected', () => {
+  it('persists items without persisting the selection, so a remount recovers items but starts unselected', () => {
     const { unmount } = render(<App />)
 
-    addTaskByButton('Write the report')
-    selectFocusTask('Write the report')
+    addItemByButton('Write the report')
+    selectFocusItem('Write the report')
     expect(within(getFocusTimerSection()).getByText('Write the report')).toBeInTheDocument()
 
     unmount()
@@ -515,7 +476,7 @@ describe('App integration: focus task selection', () => {
   it('exposes the selection and unlink controls as native, keyboard-focusable buttons', () => {
     render(<App />)
 
-    addTaskByButton('Write the report')
+    addItemByButton('Write the report')
     const selectButton = getFocusSelectButton('Write the report')
     expect(selectButton.tagName).toBe('BUTTON')
 
@@ -529,11 +490,11 @@ describe('App integration: focus task selection', () => {
     expect(unlinkButton).toHaveFocus()
   })
 
-  it('gives selection and unlink controls accessible names that include the task title', () => {
+  it('gives selection and unlink controls accessible names that include the item title', () => {
     render(<App />)
 
-    addTaskByButton('Write the report')
-    selectFocusTask('Write the report')
+    addItemByButton('Write the report')
+    selectFocusItem('Write the report')
 
     expect(getFocusSelectedButton('Write the report')).toBeInTheDocument()
     expect(getUnlinkButton()).toBeInTheDocument()
@@ -542,8 +503,8 @@ describe('App integration: focus task selection', () => {
   it('unlinking the selection while idle clears the focus without disturbing the timer', () => {
     render(<App />)
 
-    addTaskByButton('Write the report')
-    selectFocusTask('Write the report')
+    addItemByButton('Write the report')
+    selectFocusItem('Write the report')
 
     fireEvent.click(getUnlinkButton())
 

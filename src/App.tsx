@@ -1,14 +1,14 @@
 import './App.css'
-import { TodayEssentialTasks } from './features/tasks/components/TodayEssentialTasks'
-import { useEssentialTasks } from './features/tasks/hooks/useEssentialTasks'
+import { DailyAgenda } from './features/agenda/components/DailyAgenda'
+import { useAgendaItems } from './features/agenda/hooks/useAgendaItems'
 import { FocusTimer } from './features/timer/components/FocusTimer'
 import { useFocusTimer } from './features/timer/hooks/useFocusTimer'
 import { useFocusTaskSelection } from './features/focus/hooks/useFocusTaskSelection'
 
 function App() {
-  const tasks = useEssentialTasks()
+  const agenda = useAgendaItems()
   const timer = useFocusTimer()
-  const selection = useFocusTaskSelection(tasks.tasks, timer.state.status)
+  const selection = useFocusTaskSelection(agenda.selectedDateItems, timer.state.status)
 
   return (
     <main className="app-shell">
@@ -17,16 +17,16 @@ function App() {
         <p className="app-shell__tagline">Do plano ao feito, no seu ritmo.</p>
       </div>
       <div className="app-shell__workspace">
-        <TodayEssentialTasks
-          tasks={tasks.tasks}
-          addTask={tasks.addTask}
-          completeTask={tasks.completeTask}
-          reopenTask={tasks.reopenTask}
-          removeTask={tasks.removeTask}
-          completedCount={tasks.completedCount}
-          isLimitReached={tasks.isLimitReached}
-          selectedTaskId={selection.selectedTaskId}
-          selectTask={selection.selectTask}
+        <DailyAgenda
+          selectedDate={agenda.selectedDate}
+          selectedDateItems={agenda.selectedDateItems}
+          selectDate={agenda.selectDate}
+          addItem={agenda.addItem}
+          completeItem={agenda.completeItem}
+          reopenItem={agenda.reopenItem}
+          removeItem={agenda.removeItem}
+          selectedItemId={selection.selectedTaskId}
+          selectItem={selection.selectTask}
           canChangeSelection={selection.canChangeSelection}
         />
         <FocusTimer

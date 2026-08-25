@@ -1,0 +1,422 @@
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { DailyAgenda } from './DailyAgenda'
+import { useAgendaItems } from '../hooks/useAgendaItems'
+import { useFocusTaskSelection } from '../../focus/hooks/useFocusTaskSelection'
+import type { AgendaItem } from '../domain/types'
+import { AGENDA_STORAGE_KEY } from '../storage/agendaStorage'
+import { ESSENTIAL_TASKS_STORAGE_KEY } from '../../tasks/storage/essentialTasksStorage'
+
+function Harness() {
+  const agenda = useAgendaItems()
+  const selection = useFocusTaskSelection(agenda.selectedDateItems, 'idle')
+
+  return (
+    <DailyAgenda
+      selectedDate={agenda.selectedDate}
+      selectedDateItems={agenda.selectedDateItems}
+      selectDate={agenda.selectDate}
+      addItem={agenda.addItem}
+      completeItem={agenda.completeItem}
+      reopenItem={agenda.reopenItem}
+      removeItem={agenda.removeItem}
+      selectedItemId={selection.selectedTaskId}
+      selectItem={selection.selectTask}
+      canChangeSelection={selection.canChangeSelection}
+    />
+  )
+}
+
+function addItemByButton(title: string) {
+  fireEvent.change(screen.getByLabelText('Novo item'), { target: { value: title } })
+  fireEvent.click(screen.getByRole('button', { name: 'Adicionar' }))
+}
+
+function getFocusSelectButton(title: string) {
+  return screen.getByRole('button', { name: `Selecionar item "${title}" para foco` })
+}
+
+function getFocusSelectedButton(title: string) {
+  return screen.getByRole('button', { name: `Item "${title}" selecionado para foco` })
+}
+
+function getRemoveButton(title: string) {
+  return screen.getByRole('button', { name: `Remover item "${title}"` })
+}
+
+function getCompleteCheckbox(title: string) {
+  return screen.getByRole('checkbox', { name: `Concluir item "${title}"` })
+}
+
+function getReopenCheckbox(title: string) {
+  return screen.getByRole('checkbox', { name: `Reabrir item "${title}"` })
+}
+
+function goToPreviousDay() {
+  fireEvent.click(screen.getByRole('button', { name: 'Dia anterior' }))
+}
+
+function goToNextDay() {
+  fireEvent.click(screen.getByRole('button', { name: 'Próximo dia' }))
+}
+
+function goToToday() {
+  fireEvent.click(screen.getByRole('button', { name: 'Hoje' }))
+}
+
+describe('DailyAgenda', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 24, 9, 0, 0))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('shows "Hoje" as the heading and a readable current date', () => {
+    render(<Harness />)
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Hoje' })).toBeInTheDocument()
+    expect(screen.getByText('24 de agosto de 2026')).toBeInTheDocument()
+  })
+
+  it('navigates to the previous day and shows a non-"Hoje" heading with a readable date', () => {
+    render(<Harness />)
+
+    goToPreviousDay()
+
+    expect(screen.queryByRole('heading', { level: 2, name: 'Hoje' })).not.toBeInTheDocument()
+    expect(screen.getByText('23 de agosto de 2026', { selector: '.daily-agenda__date' })).toBeInTheDocument()
+  })
+
+  it('navigates forward and back to today repeatedly', () => {
+    render(<Harness />)
+
+    goToNextDay()
+    goToNextDay()
+    expect(screen.getByText('26 de agosto de 2026', { selector: '.daily-agenda__date' })).toBeInTheDocument()
+
+    goToPreviousDay()
+    expect(screen.getByText('25 de agosto de 2026', { selector: '.daily-agenda__date' })).toBeInTheDocument()
+
+    goToToday()
+    expect(screen.getByRole('heading', { level: 2, name: 'Hoje' })).toBeInTheDocument()
+  })
+
+  it('navigates across a month boundary', () => {
+    vi.setSystemTime(new Date(2026, 7, 31, 9, 0, 0))
+    render(<Harness />)
+
+    goToNextDay()
+
+    expect(screen.getByText('1 de setembro de 2026', { selector: '.daily-agenda__date' })).toBeInTheDocument()
+  })
+
+  it('navigates across a year boundary', () => {
+    vi.setSystemTime(new Date(2026, 11, 31, 9, 0, 0))
+    render(<Harness />)
+
+    goToNextDay()
+
+    expect(screen.getByText('1 de janeiro de 2027', { selector: '.daily-agenda__date' })).toBeInTheDocument()
+  })
+
+  it('creates an item on the currently selected date, not necessarily today', () => {
+    render(<Harness />)
+
+    goToNextDay()
+    addItemByButton('Plan tomorrow')
+
+    expect(screen.getByText('Plan tomorrow')).toBeInTheDocument()
+
+    goToPreviousDay()
+    expect(screen.queryByText('Plan tomorrow')).not.toBeInTheDocument()
+
+    goToNextDay()
+    expect(screen.getByText('Plan tomorrow')).toBeInTheDocument()
+  })
+
+  it('keeps items from multiple days after switching between them', () => {
+    render(<Harness />)
+
+    addItemByButton('Today item')
+    goToNextDay()
+    addItemByButton('Tomorrow item')
+
+    expect(screen.getByText('Tomorrow item')).toBeInTheDocument()
+    expect(screen.queryByText('Today item')).not.toBeInTheDocument()
+
+    goToPreviousDay()
+    expect(screen.getByText('Today item')).toBeInTheDocument()
+    expect(screen.queryByText('Tomorrow item')).not.toBeInTheDocument()
+  })
+
+  it('renders items in the order already provided (time-first) by selectedDateItems, without re-sorting', () => {
+    const orderedItems: AgendaItem[] = [
+      { id: 'a2', title: 'Timed item', status: 'pending', localDate: '2026-08-24', startTime: '09:00', durationMinutes: null },
+      { id: 'a1', title: 'No time item', status: 'pending', localDate: '2026-08-24', startTime: null, durationMinutes: null },
+    ]
+
+    render(
+      <DailyAgenda
+        selectedDate="2026-08-24"
+        selectedDateItems={orderedItems}
+        selectDate={() => {}}
+        addItem={() => 'added'}
+        completeItem={() => {}}
+        reopenItem={() => {}}
+        removeItem={() => {}}
+        selectedItemId={null}
+        selectItem={() => {}}
+        canChangeSelection
+      />,
+    )
+
+    const listItems = screen.getAllByRole('listitem')
+    expect(within(listItems[0]).getByText('Timed item')).toBeInTheDocument()
+    expect(within(listItems[1]).getByText('No time item')).toBeInTheDocument()
+  })
+
+  it('shows "Sem horário" for an item without a start time', () => {
+    render(<Harness />)
+
+    addItemByButton('No time item')
+
+    expect(screen.getByText('Sem horário')).toBeInTheDocument()
+  })
+
+  it('completes and reopens an item', () => {
+    render(<Harness />)
+
+    addItemByButton('Write the report')
+    fireEvent.click(getCompleteCheckbox('Write the report'))
+
+    expect(getReopenCheckbox('Write the report')).toBeChecked()
+
+    fireEvent.click(getReopenCheckbox('Write the report'))
+
+    expect(getCompleteCheckbox('Write the report')).not.toBeChecked()
+  })
+
+  it('requires confirmation before removing an item', () => {
+    render(<Harness />)
+
+    addItemByButton('Write the report')
+    fireEvent.click(getRemoveButton('Write the report'))
+
+    expect(screen.getByRole('button', { name: 'Confirmar remoção' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar remoção' }))
+
+    expect(screen.queryByText('Write the report')).not.toBeInTheDocument()
+  })
+
+  it('closes an open remove confirmation when the selected date changes', () => {
+    render(<Harness />)
+
+    addItemByButton('Write the report')
+    fireEvent.click(getRemoveButton('Write the report'))
+    expect(screen.getByRole('button', { name: 'Confirmar remoção' })).toBeInTheDocument()
+
+    goToNextDay()
+    expect(screen.queryByRole('button', { name: 'Confirmar remoção' })).not.toBeInTheDocument()
+
+    goToPreviousDay()
+    expect(screen.getByText('Write the report')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Confirmar remoção' })).not.toBeInTheDocument()
+  })
+
+  it('regression: closes the confirmation even when the new day contains an item with the same id', () => {
+    const dayOneItems: AgendaItem[] = [
+      { id: 'agenda-item-1', title: 'Today item', status: 'pending', localDate: '2026-08-24', startTime: null, durationMinutes: null },
+    ]
+    const dayTwoItems: AgendaItem[] = [
+      { id: 'agenda-item-1', title: 'Tomorrow item', status: 'pending', localDate: '2026-08-25', startTime: null, durationMinutes: null },
+    ]
+    const noop = () => 'added' as const
+
+    const { rerender } = render(
+      <DailyAgenda
+        selectedDate="2026-08-24"
+        selectedDateItems={dayOneItems}
+        selectDate={() => {}}
+        addItem={noop}
+        completeItem={() => {}}
+        reopenItem={() => {}}
+        removeItem={() => {}}
+        selectedItemId={null}
+        selectItem={() => {}}
+        canChangeSelection
+      />,
+    )
+
+    fireEvent.click(getRemoveButton('Today item'))
+    expect(screen.getByRole('button', { name: 'Confirmar remoção' })).toBeInTheDocument()
+
+    rerender(
+      <DailyAgenda
+        selectedDate="2026-08-25"
+        selectedDateItems={dayTwoItems}
+        selectDate={() => {}}
+        addItem={noop}
+        completeItem={() => {}}
+        reopenItem={() => {}}
+        removeItem={() => {}}
+        selectedItemId={null}
+        selectItem={() => {}}
+        canChangeSelection
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Confirmar remoção' })).not.toBeInTheDocument()
+    expect(screen.getByText('Tomorrow item')).toBeInTheDocument()
+  })
+
+  it('only offers focus selection for pending items', () => {
+    render(<Harness />)
+
+    addItemByButton('Write the report')
+    fireEvent.click(getCompleteCheckbox('Write the report'))
+
+    expect(screen.queryByRole('button', { name: 'Selecionar item "Write the report" para foco' })).not.toBeInTheDocument()
+  })
+
+  it('clears the selection when the selected item is completed', () => {
+    render(<Harness />)
+
+    addItemByButton('Write the report')
+    fireEvent.click(getFocusSelectButton('Write the report'))
+    expect(getFocusSelectedButton('Write the report')).toBeInTheDocument()
+
+    fireEvent.click(getCompleteCheckbox('Write the report'))
+
+    expect(screen.queryByRole('button', { name: 'Item "Write the report" selecionado para foco' })).not.toBeInTheDocument()
+  })
+
+  it('clears the selection when the selected item is removed', () => {
+    render(<Harness />)
+
+    addItemByButton('Write the report')
+    fireEvent.click(getFocusSelectButton('Write the report'))
+    expect(getFocusSelectedButton('Write the report')).toBeInTheDocument()
+
+    fireEvent.click(getRemoveButton('Write the report'))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar remoção' }))
+
+    expect(screen.queryByText('Write the report')).not.toBeInTheDocument()
+  })
+
+  it('permanently clears the selection after changing date and back', () => {
+    render(<Harness />)
+
+    addItemByButton('Write the report')
+    fireEvent.click(getFocusSelectButton('Write the report'))
+    expect(getFocusSelectedButton('Write the report')).toBeInTheDocument()
+
+    goToNextDay()
+    goToPreviousDay()
+
+    expect(screen.getByText('Write the report')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Item "Write the report" selecionado para foco' })).not.toBeInTheDocument()
+    expect(getFocusSelectButton('Write the report')).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('shows an accessible feedback message when submitting an empty title', () => {
+    render(<Harness />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar' }))
+
+    expect(screen.getByRole('status')).toHaveTextContent('Digite um título para adicionar o item.')
+  })
+
+  it('reports an empty day', () => {
+    render(<Harness />)
+
+    expect(screen.getByText('Nenhum item para este dia.')).toBeInTheDocument()
+  })
+
+  it('renders a long title without breaking the layout structure', () => {
+    render(<Harness />)
+
+    const longTitle = 'A'.repeat(200)
+    addItemByButton(longTitle)
+
+    const titleElement = screen.getByText(longTitle)
+    expect(titleElement).toHaveClass('daily-agenda__item-title')
+  })
+
+  it('shows the legacy migration without erasing the essential-tasks record', () => {
+    const storage = new Map<string, string>()
+    const fakeStorage = {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        storage.set(key, value)
+      },
+    }
+    fakeStorage.setItem(
+      ESSENTIAL_TASKS_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        localDate: '2026-08-24',
+        tasks: [{ id: 'essential-task-1', title: 'Legacy task', status: 'pending' }],
+      }),
+    )
+
+    function MigrationHarness() {
+      const agenda = useAgendaItems({ storage: fakeStorage, now: () => new Date(2026, 7, 24) })
+      return (
+        <DailyAgenda
+          selectedDate={agenda.selectedDate}
+          selectedDateItems={agenda.selectedDateItems}
+          selectDate={agenda.selectDate}
+          addItem={agenda.addItem}
+          completeItem={agenda.completeItem}
+          reopenItem={agenda.reopenItem}
+          removeItem={agenda.removeItem}
+          selectedItemId={null}
+          selectItem={() => {}}
+          canChangeSelection
+        />
+      )
+    }
+
+    render(<MigrationHarness />)
+
+    expect(screen.getByText('Legacy task')).toBeInTheDocument()
+    expect(fakeStorage.getItem(ESSENTIAL_TASKS_STORAGE_KEY)).not.toBeNull()
+    expect(fakeStorage.getItem(AGENDA_STORAGE_KEY)).not.toBeNull()
+  })
+
+  it('keeps working in memory when localStorage access throws', () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(window, 'localStorage')
+
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('localStorage disabled')
+      },
+    })
+
+    try {
+      render(<Harness />)
+
+      addItemByButton('Write the report')
+      expect(screen.getByText('Write the report')).toBeInTheDocument()
+
+      fireEvent.click(getFocusSelectButton('Write the report'))
+      expect(getFocusSelectedButton('Write the report')).toBeInTheDocument()
+
+      fireEvent.click(getCompleteCheckbox('Write the report'))
+      expect(getReopenCheckbox('Write the report')).toBeChecked()
+
+      fireEvent.click(getRemoveButton('Write the report'))
+      fireEvent.click(screen.getByRole('button', { name: 'Confirmar remoção' }))
+      expect(screen.queryByText('Write the report')).not.toBeInTheDocument()
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(window, 'localStorage', originalDescriptor)
+      }
+    }
+  })
+})
