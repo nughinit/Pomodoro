@@ -129,6 +129,19 @@ describe('App integration: agenda planning and focus timer', () => {
     expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
   })
 
+  it('creates an item with an optional start time and duration, deriving the end time', () => {
+    render(<App />)
+
+    fireEvent.change(screen.getByLabelText('Novo item'), { target: { value: 'Write the report' } })
+    fireEvent.change(screen.getByLabelText('Horário'), { target: { value: '09:00' } })
+    fireEvent.change(screen.getByLabelText('Duração (minutos)'), { target: { value: '30' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar' }))
+
+    expect(screen.getByText('09:00–09:30 · 30 min')).toBeInTheDocument()
+    selectFocusItem('Write the report')
+    expect(within(getFocusTimerSection()).getByText('Write the report')).toBeInTheDocument()
+  })
+
   it('advances the timer deterministically while the agenda list stays intact', () => {
     render(<App />)
 

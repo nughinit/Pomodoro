@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { MAX_AGENDA_ITEM_DURATION_MINUTES } from '../domain/types'
 import type { AgendaItem, LocalDateString } from '../domain/types'
+import { deriveAgendaItemEndTime } from '../domain/agendaItems'
 import type { AddAgendaItemResult } from '../domain/agendaItems'
 import type { AddAgendaItemInput } from '../hooks/useAgendaItems'
+import { parseOptionalDurationField, parseOptionalTimeField } from './agendaFieldParsing'
 import './DailyAgenda.css'
 
 const EMPTY_TITLE_MESSAGE = 'Digite um título para adicionar o item.'
+const INVALID_TIME_MESSAGE = 'Informe um horário válido no formato HH:mm.'
+const INVALID_DURATION_MESSAGE = `Informe uma duração válida entre 1 e ${MAX_AGENDA_ITEM_DURATION_MINUTES} minutos.`
 
 const WEEKDAY_FORMATTER = new Intl.DateTimeFormat('pt-BR', { weekday: 'long' })
 const LONG_DATE_FORMATTER = new Intl.DateTimeFormat('pt-BR', {
@@ -46,6 +51,28 @@ function formatWeekdayDate(localDate: LocalDateString): string {
   return `${capitalize(WEEKDAY_FORMATTER.format(date))}, ${LONG_DATE_FORMATTER.format(date)}`
 }
 
+function formatItemMeta(item: AgendaItem): string {
+  const durationSuffix = item.durationMinutes !== null ? ` · ${item.durationMinutes} min` : ''
+
+  if (item.startTime === null) {
+    return `Sem horário${durationSuffix}`
+  }
+
+  if (item.durationMinutes === null) {
+    return item.startTime
+  }
+
+  const derivedEnd = deriveAgendaItemEndTime(item.startTime, item.durationMinutes)
+  if (derivedEnd.status !== 'ok') {
+    return `${item.startTime}${durationSuffix}`
+  }
+
+  const endLabel =
+    derivedEnd.dayOffset > 0 ? `${derivedEnd.endTime} (+${derivedEnd.dayOffset} dia)` : derivedEnd.endTime
+
+  return `${item.startTime}–${endLabel}${durationSuffix}`
+}
+
 export interface DailyAgendaFocusProps {
   selectedItemId: string | null
   selectItem: (id: string) => void
@@ -75,6 +102,8 @@ export function DailyAgenda({
   canChangeSelection,
 }: DailyAgendaProps) {
   const [title, setTitle] = useState('')
+  const [startTimeInput, setStartTimeInput] = useState('')
+  const [durationInput, setDurationInput] = useState('')
   const [feedback, setFeedback] = useState('')
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [dateSnapshotForConfirm, setDateSnapshotForConfirm] = useState(selectedDate)
@@ -117,17 +146,32 @@ export function DailyAgenda({
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    const outcome = addItem({ title })
+    const startTime = parseOptionalTimeField(startTimeInput)
+    const durationMinutes = parseOptionalDurationField(durationInput)
+
+    const outcome = addItem({ title, startTime, durationMinutes })
 
     if (outcome === 'added') {
       setFeedback('')
       setTitle('')
+      setStartTimeInput('')
+      setDurationInput('')
       inputRef.current?.focus()
       return
     }
 
     if (outcome === 'empty-title') {
       setFeedback(EMPTY_TITLE_MESSAGE)
+      return
+    }
+
+    if (outcome === 'invalid-time') {
+      setFeedback(INVALID_TIME_MESSAGE)
+      return
+    }
+
+    if (outcome === 'invalid-duration') {
+      setFeedback(INVALID_DURATION_MESSAGE)
     }
   }
 
@@ -219,10 +263,7 @@ export function DailyAgenda({
                       />
                       <span className="daily-agenda__item-body">
                         <span className="daily-agenda__item-title">{item.title}</span>
-                        <span className="daily-agenda__item-meta">
-                          {item.startTime ?? 'Sem horário'}
-                          {item.durationMinutes !== null ? ` · ${item.durationMinutes} min` : ''}
-                        </span>
+                        <span className="daily-agenda__item-meta">{formatItemMeta(item)}</span>
                       </span>
                     </label>
                     {isCompleted && <span className="daily-agenda__status-badge">Concluído</span>}
@@ -313,6 +354,40 @@ export function DailyAgenda({
               Adicionar
             </button>
           </div>
+
+          <div className="daily-agenda__optional-fields">
+            <div className="daily-agenda__field-group">
+              <label htmlFor="daily-agenda-time" className="daily-agenda__field-label">
+                Horário
+              </label>
+              <input
+                id="daily-agenda-time"
+                className="daily-agenda__time-input"
+                type="time"
+                value={startTimeInput}
+                onChange={(event) => setStartTimeInput(event.target.value)}
+                aria-describedby="daily-agenda-feedback"
+              />
+            </div>
+            <div className="daily-agenda__field-group">
+              <label htmlFor="daily-agenda-duration" className="daily-agenda__field-label">
+                Duração (minutos)
+              </label>
+              <input
+                id="daily-agenda-duration"
+                className="daily-agenda__duration-input"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={MAX_AGENDA_ITEM_DURATION_MINUTES}
+                step={1}
+                value={durationInput}
+                onChange={(event) => setDurationInput(event.target.value)}
+                aria-describedby="daily-agenda-feedback"
+              />
+            </div>
+          </div>
+
           <p
             id="daily-agenda-feedback"
             ref={feedbackRef}

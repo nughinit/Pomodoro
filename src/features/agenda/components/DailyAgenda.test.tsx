@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DailyAgenda } from './DailyAgenda'
+import { parseOptionalDurationField, parseOptionalTimeField } from './agendaFieldParsing'
 import { useAgendaItems } from '../hooks/useAgendaItems'
 import { useFocusTaskSelection } from '../../focus/hooks/useFocusTaskSelection'
 import type { AgendaItem } from '../domain/types'
@@ -62,6 +63,68 @@ function goToNextDay() {
 
 function goToToday() {
   fireEvent.click(screen.getByRole('button', { name: 'Hoje' }))
+}
+
+function getTimeInput() {
+  return screen.getByLabelText('Horário')
+}
+
+function getDurationInput() {
+  return screen.getByLabelText('Duração (minutos)')
+}
+
+function submitItem(fields: { title?: string; time?: string; duration?: string } = {}) {
+  if (fields.title !== undefined) {
+    fireEvent.change(screen.getByLabelText('Novo item'), { target: { value: fields.title } })
+  }
+  if (fields.time !== undefined) {
+    fireEvent.change(getTimeInput(), { target: { value: fields.time } })
+  }
+  if (fields.duration !== undefined) {
+    fireEvent.change(getDurationInput(), { target: { value: fields.duration } })
+  }
+  fireEvent.click(screen.getByRole('button', { name: 'Adicionar' }))
+}
+
+interface FakeStorage {
+  getItem: (key: string) => string | null
+  setItem: (key: string, value: string) => void
+}
+
+function createFakeStorage(): FakeStorage {
+  const store = new Map<string, string>()
+  return {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      store.set(key, value)
+    },
+  }
+}
+
+function StorageHarness({ storage, now }: { storage: FakeStorage; now: () => Date }) {
+  const agenda = useAgendaItems({ storage, now })
+  const selection = useFocusTaskSelection(agenda.selectedDateItems, 'idle')
+
+  return (
+    <DailyAgenda
+      selectedDate={agenda.selectedDate}
+      selectedDateItems={agenda.selectedDateItems}
+      selectDate={agenda.selectDate}
+      addItem={agenda.addItem}
+      completeItem={agenda.completeItem}
+      reopenItem={agenda.reopenItem}
+      removeItem={agenda.removeItem}
+      selectedItemId={selection.selectedTaskId}
+      selectItem={selection.selectTask}
+      canChangeSelection={selection.canChangeSelection}
+    />
+  )
+}
+
+function readPersistedItems(storage: FakeStorage): AgendaItem[] {
+  const raw = storage.getItem(AGENDA_STORAGE_KEY)
+  if (raw === null) return []
+  return (JSON.parse(raw) as { items: AgendaItem[] }).items
 }
 
 describe('DailyAgenda', () => {
@@ -401,8 +464,9 @@ describe('DailyAgenda', () => {
     try {
       render(<Harness />)
 
-      addItemByButton('Write the report')
+      submitItem({ title: 'Write the report', time: '09:00', duration: '30' })
       expect(screen.getByText('Write the report')).toBeInTheDocument()
+      expect(screen.getByText('09:00–09:30 · 30 min')).toBeInTheDocument()
 
       fireEvent.click(getFocusSelectButton('Write the report'))
       expect(getFocusSelectedButton('Write the report')).toBeInTheDocument()
@@ -418,5 +482,256 @@ describe('DailyAgenda', () => {
         Object.defineProperty(window, 'localStorage', originalDescriptor)
       }
     }
+  })
+})
+
+describe('DailyAgenda time and duration fields', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 24, 9, 0, 0))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('creates an item with only the required title, sending null for time and duration', () => {
+    const storage = createFakeStorage()
+    render(<StorageHarness storage={storage} now={() => new Date(2026, 7, 24)} />)
+
+    submitItem({ title: 'Write the report' })
+
+    expect(screen.getByText('Write the report')).toBeInTheDocument()
+    expect(screen.getByText('Sem horário')).toBeInTheDocument()
+
+    const persisted = readPersistedItems(storage)
+    expect(persisted).toHaveLength(1)
+    expect(persisted[0].startTime).toBeNull()
+    expect(persisted[0].durationMinutes).toBeNull()
+  })
+
+  it('creates an item with a start time and no duration', () => {
+    render(<Harness />)
+
+    submitItem({ title: 'Standup', time: '09:00' })
+
+    expect(screen.getByText('Standup')).toBeInTheDocument()
+    expect(screen.getByText('09:00')).toBeInTheDocument()
+  })
+
+  it('creates an item with a duration and no start time', () => {
+    render(<Harness />)
+
+    submitItem({ title: 'Deep work', duration: '45' })
+
+    expect(screen.getByText('Deep work')).toBeInTheDocument()
+    expect(screen.getByText('Sem horário · 45 min')).toBeInTheDocument()
+  })
+
+  it('creates an item with both a start time and a duration', () => {
+    const storage = createFakeStorage()
+    render(<StorageHarness storage={storage} now={() => new Date(2026, 7, 24)} />)
+
+    submitItem({ title: 'Write the report', time: '09:00', duration: '30' })
+
+    expect(screen.getByText('09:00–09:30 · 30 min')).toBeInTheDocument()
+
+    const persisted = readPersistedItems(storage)
+    expect(persisted[0]).toEqual({
+      id: 'agenda-item-1',
+      title: 'Write the report',
+      status: 'pending',
+      localDate: '2026-08-24',
+      startTime: '09:00',
+      durationMinutes: 30,
+    })
+    expect(Object.keys(persisted[0])).not.toContain('endTime')
+  })
+
+  it('does not create an item and shows an accessible error when addItem reports an invalid time', () => {
+    const addItem = vi.fn(() => 'invalid-time' as const)
+
+    render(
+      <DailyAgenda
+        selectedDate="2026-08-24"
+        selectedDateItems={[]}
+        selectDate={() => {}}
+        addItem={addItem}
+        completeItem={() => {}}
+        reopenItem={() => {}}
+        removeItem={() => {}}
+        selectedItemId={null}
+        selectItem={() => {}}
+        canChangeSelection
+      />,
+    )
+
+    submitItem({ title: 'Write the report', time: '09:00' })
+
+    expect(addItem).toHaveBeenCalledWith({
+      title: 'Write the report',
+      startTime: '09:00',
+      durationMinutes: null,
+    })
+    expect(screen.queryByText('Write the report')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Informe um horário válido no formato HH:mm.')
+  })
+
+  it('rejects a duration of zero', () => {
+    render(<Harness />)
+
+    submitItem({ title: 'Write the report', duration: '0' })
+
+    expect(screen.queryByText('Write the report')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Informe uma duração válida entre 1 e 1440 minutos.',
+    )
+  })
+
+  it('rejects a negative duration', () => {
+    render(<Harness />)
+
+    submitItem({ title: 'Write the report', duration: '-5' })
+
+    expect(screen.queryByText('Write the report')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Informe uma duração válida entre 1 e 1440 minutos.',
+    )
+  })
+
+  it('rejects a decimal duration without rounding it', () => {
+    const storage = createFakeStorage()
+    render(<StorageHarness storage={storage} now={() => new Date(2026, 7, 24)} />)
+
+    submitItem({ title: 'Write the report', duration: '30.5' })
+
+    expect(screen.queryByText('Write the report')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Informe uma duração válida entre 1 e 1440 minutos.',
+    )
+    expect(readPersistedItems(storage)).toHaveLength(0)
+  })
+
+  it('rejects a duration above the maximum without falling back to no duration', () => {
+    render(<Harness />)
+
+    submitItem({ title: 'Write the report', duration: '1441' })
+
+    expect(screen.queryByText('Write the report')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Informe uma duração válida entre 1 e 1440 minutos.',
+    )
+  })
+
+  it('does not create an item and shows an accessible error when addItem reports an invalid duration', () => {
+    const addItem = vi.fn(() => 'invalid-duration' as const)
+
+    render(
+      <DailyAgenda
+        selectedDate="2026-08-24"
+        selectedDateItems={[]}
+        selectDate={() => {}}
+        addItem={addItem}
+        completeItem={() => {}}
+        reopenItem={() => {}}
+        removeItem={() => {}}
+        selectedItemId={null}
+        selectItem={() => {}}
+        canChangeSelection
+      />,
+    )
+
+    submitItem({ title: 'Write the report', duration: '30' })
+
+    expect(addItem).toHaveBeenCalledWith({
+      title: 'Write the report',
+      startTime: null,
+      durationMinutes: 30,
+    })
+    expect(screen.queryByText('Write the report')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Informe uma duração válida entre 1 e 1440 minutos.',
+    )
+  })
+
+  it('preserves the title, time, and duration values after a validation error', () => {
+    render(<Harness />)
+
+    submitItem({ title: 'Write the report', time: '09:00', duration: '0' })
+
+    expect(screen.getByLabelText('Novo item')).toHaveValue('Write the report')
+    expect(getTimeInput()).toHaveValue('09:00')
+    expect(getDurationInput()).toHaveValue(0)
+  })
+
+  it('clears title, time, and duration after a successful submission', () => {
+    render(<Harness />)
+
+    submitItem({ title: 'Write the report', time: '09:00', duration: '30' })
+
+    expect(screen.getByLabelText('Novo item')).toHaveValue('')
+    expect(getTimeInput()).toHaveValue('')
+    expect(getDurationInput()).toHaveValue(null)
+  })
+
+  it('creates the item on the currently selected date, not necessarily today', () => {
+    render(<Harness />)
+
+    goToNextDay()
+    submitItem({ title: 'Plan tomorrow', time: '10:00', duration: '15' })
+
+    expect(screen.getByText('10:00–10:15 · 15 min')).toBeInTheDocument()
+
+    goToPreviousDay()
+    expect(screen.queryByText('Plan tomorrow')).not.toBeInTheDocument()
+  })
+
+  it('shows a normal interval such as 09:00-09:30', () => {
+    render(<Harness />)
+
+    submitItem({ title: 'Write the report', time: '09:00', duration: '30' })
+
+    expect(screen.getByText('09:00–09:30 · 30 min')).toBeInTheDocument()
+  })
+
+  it('shows an interval crossing midnight with a "+1 dia" indicator', () => {
+    render(<Harness />)
+
+    submitItem({ title: 'Night shift', time: '23:30', duration: '60' })
+
+    expect(screen.getByText('23:30–00:30 (+1 dia) · 60 min')).toBeInTheDocument()
+  })
+
+  it('represents a 1440-minute duration correctly, wrapping to the same time next day', () => {
+    render(<Harness />)
+
+    submitItem({ title: 'All day block', time: '00:00', duration: '1440' })
+
+    expect(screen.getByText('00:00–00:00 (+1 dia) · 1440 min')).toBeInTheDocument()
+  })
+})
+
+describe('parseOptionalTimeField and parseOptionalDurationField', () => {
+  it('maps an empty or blank string to null for both fields', () => {
+    expect(parseOptionalTimeField('')).toBeNull()
+    expect(parseOptionalTimeField('   ')).toBeNull()
+    expect(parseOptionalDurationField('')).toBeNull()
+    expect(parseOptionalDurationField('   ')).toBeNull()
+  })
+
+  it('passes a filled time value through untouched', () => {
+    expect(parseOptionalTimeField('09:00')).toBe('09:00')
+  })
+
+  it('parses a filled duration value as a number', () => {
+    expect(parseOptionalDurationField('30')).toBe(30)
+  })
+
+  it('maps a non-numeric duration string to NaN, matching what real typed input would never bypass the domain with', () => {
+    expect(parseOptionalDurationField('abc')).toBeNaN()
+  })
+
+  it('does not round a decimal duration', () => {
+    expect(parseOptionalDurationField('30.5')).toBe(30.5)
   })
 })
