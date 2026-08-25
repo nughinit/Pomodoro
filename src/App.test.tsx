@@ -527,4 +527,333 @@ describe('App integration: focus item selection', () => {
     expect(getFocusSelectButton('Write the report')).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByLabelText('Tempo restante 25:00')).toBeInTheDocument()
   })
+
+  it('adding a new item after removing the selected one does not auto-associate the new item with focus', () => {
+    render(<App />)
+
+    addItemByButton('Write the report')
+    selectFocusItem('Write the report')
+    fireEvent.click(getRemoveButton('Write the report'))
+    fireEvent.click(getConfirmRemoveButton())
+
+    addItemByButton('Write the report')
+
+    expect(
+      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+    ).toBeInTheDocument()
+    expect(getFocusSelectButton('Write the report')).toHaveAttribute('aria-pressed', 'false')
+  })
+})
+
+describe('App integration: date changes during an active session', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 0, 1, 9, 0, 0))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('invalidates the selection permanently when the date changes while the timer is running, without pausing it', () => {
+    render(<App />)
+
+    addItemByButton('Write the report')
+    selectFocusItem('Write the report')
+    act(() => clickTimerPrimaryButton())
+    act(() => {
+      vi.advanceTimersByTime(60_000)
+    })
+
+    expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Próximo dia' }))
+
+    expect(
+      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(60_000)
+    })
+    expect(screen.getByLabelText('Tempo restante 23:00')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dia anterior' }))
+
+    expect(getAgendaListItem('Write the report')).toBeInTheDocument()
+    expect(
+      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+    ).toBeInTheDocument()
+    expect(getFocusSelectButton('Write the report')).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
+  })
+
+  it('invalidates the selection permanently when the date changes while the timer is paused, without changing its state', () => {
+    render(<App />)
+
+    addItemByButton('Write the report')
+    selectFocusItem('Write the report')
+    act(() => clickTimerPrimaryButton())
+    act(() => {
+      vi.advanceTimersByTime(60_000)
+    })
+    act(() => clickTimerPrimaryButton())
+
+    expect(screen.getByRole('button', { name: 'Continuar' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Tempo restante 24:00')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Próximo dia' }))
+
+    expect(
+      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Continuar' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Tempo restante 24:00')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dia anterior' }))
+
+    expect(getAgendaListItem('Write the report')).toBeInTheDocument()
+    expect(
+      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+    ).toBeInTheDocument()
+    expect(getFocusSelectButton('Write the report')).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Continuar' })).toBeInTheDocument()
+  })
+})
+
+describe('App integration: completing or removing the selected item during active sessions', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 0, 1, 9, 0, 0))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('completing the selected item while paused clears the focus without completing or restarting the timer', () => {
+    render(<App />)
+
+    addItemByButton('Write the report')
+    selectFocusItem('Write the report')
+    act(() => clickTimerPrimaryButton())
+    act(() => {
+      vi.advanceTimersByTime(60_000)
+    })
+    act(() => clickTimerPrimaryButton())
+
+    expect(screen.getByRole('button', { name: 'Continuar' })).toBeInTheDocument()
+
+    fireEvent.click(getCompleteCheckbox('Write the report'))
+
+    expect(
+      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Continuar' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Tempo restante 24:00')).toBeInTheDocument()
+
+    act(() => clickTimerPrimaryButton())
+    act(() => {
+      vi.advanceTimersByTime(60_000)
+    })
+
+    expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Tempo restante 23:00')).toBeInTheDocument()
+  })
+
+  it('removing the selected item while running clears the focus and keeps the timer running safely', () => {
+    render(<App />)
+
+    addItemByButton('Write the report')
+    selectFocusItem('Write the report')
+    act(() => clickTimerPrimaryButton())
+    act(() => {
+      vi.advanceTimersByTime(60_000)
+    })
+
+    fireEvent.click(getRemoveButton('Write the report'))
+    fireEvent.click(getConfirmRemoveButton())
+
+    expect(screen.queryByText('Write the report')).not.toBeInTheDocument()
+    expect(
+      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Tempo restante 24:00')).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(60_000)
+    })
+    expect(screen.getByLabelText('Tempo restante 23:00')).toBeInTheDocument()
+  })
+
+  it('removing the selected item while paused clears the focus and preserves the paused time and safe controls', () => {
+    render(<App />)
+
+    addItemByButton('Write the report')
+    selectFocusItem('Write the report')
+    act(() => clickTimerPrimaryButton())
+    act(() => {
+      vi.advanceTimersByTime(60_000)
+    })
+    act(() => clickTimerPrimaryButton())
+
+    fireEvent.click(getRemoveButton('Write the report'))
+    fireEvent.click(getConfirmRemoveButton())
+
+    expect(screen.queryByText('Write the report')).not.toBeInTheDocument()
+    expect(
+      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Continuar' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Tempo restante 24:00')).toBeInTheDocument()
+
+    act(() => clickTimerPrimaryButton())
+    act(() => {
+      vi.advanceTimersByTime(60_000)
+    })
+
+    expect(screen.getByLabelText('Tempo restante 23:00')).toBeInTheDocument()
+  })
+})
+
+describe('App integration: natural completion and reset', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 0, 1, 9, 0, 0))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('reaching natural completion does not complete the agenda item, preserves the selection, and allows switching to a new item and starting a new session', () => {
+    render(<App />)
+
+    addItemByButton('Write the report')
+    addItemByButton('Plan the day')
+    selectFocusItem('Write the report')
+    act(() => clickTimerPrimaryButton())
+    act(() => {
+      vi.advanceTimersByTime(25 * 60 * 1000)
+    })
+
+    expect(screen.getByRole('button', { name: 'Iniciar novamente' })).toBeInTheDocument()
+    expect(screen.getByText('Sessão concluída')).toBeInTheDocument()
+    expect(getCompleteCheckbox('Write the report')).not.toBeChecked()
+    expect(within(getFocusTimerSection()).getByText('Write the report')).toBeInTheDocument()
+
+    selectFocusItem('Plan the day')
+    expect(within(getFocusTimerSection()).getByText('Plan the day')).toBeInTheDocument()
+
+    act(() => clickTimerPrimaryButton())
+    expect(screen.getByLabelText('Tempo restante 25:00')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(60_000)
+    })
+    expect(screen.getByLabelText('Tempo restante 24:00')).toBeInTheDocument()
+  })
+
+  it('resetting while paused returns to idle at 25:00, keeps the selection, and unlocks switching and unlinking', () => {
+    render(<App />)
+
+    addItemByButton('Write the report')
+    addItemByButton('Plan the day')
+    selectFocusItem('Write the report')
+    act(() => clickTimerPrimaryButton())
+    act(() => {
+      vi.advanceTimersByTime(60_000)
+    })
+    act(() => clickTimerPrimaryButton())
+
+    expect(screen.getByRole('button', { name: 'Continuar' })).toBeInTheDocument()
+
+    act(() => clickTimerReset())
+
+    expect(screen.getByLabelText('Tempo restante 25:00')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Iniciar' })).toBeInTheDocument()
+    expect(within(getFocusTimerSection()).getByText('Write the report')).toBeInTheDocument()
+
+    selectFocusItem('Plan the day')
+    expect(within(getFocusTimerSection()).getByText('Plan the day')).toBeInTheDocument()
+
+    fireEvent.click(getUnlinkButton())
+    expect(
+      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+    ).toBeInTheDocument()
+  })
+})
+
+describe('App integration: long titles', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 0, 1, 9, 0, 0))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('keeps a long title correctly displayed in the focus timer region and unmodified in persisted storage', () => {
+    render(<App />)
+
+    const longTitle = 'B'.repeat(200)
+    addItemByButton(longTitle)
+    selectFocusItem(longTitle)
+
+    expect(within(getFocusTimerSection()).getByText(longTitle)).toBeInTheDocument()
+
+    const raw = window.localStorage.getItem(AGENDA_STORAGE_KEY)
+    expect(raw).not.toBeNull()
+    const persisted = JSON.parse(raw as string) as { items: { title: string }[] }
+    expect(persisted.items[0].title).toBe(longTitle)
+  })
+})
+
+describe('App integration: multiday persistence and remount', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 0, 1, 9, 0, 0))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('persists items across multiple days without ever persisting a selection field, and remount starts unselected', () => {
+    const { unmount } = render(<App />)
+
+    addItemByButton('Today item')
+    fireEvent.click(screen.getByRole('button', { name: 'Próximo dia' }))
+    addItemByButton('Tomorrow item')
+    selectFocusItem('Tomorrow item')
+    expect(within(getFocusTimerSection()).getByText('Tomorrow item')).toBeInTheDocument()
+
+    unmount()
+
+    const raw = window.localStorage.getItem(AGENDA_STORAGE_KEY)
+    expect(raw).not.toBeNull()
+    const rawText = (raw as string).toLowerCase()
+    expect(rawText).not.toContain('select')
+    expect(rawText).not.toContain('focus')
+    expect(rawText).not.toContain('pomodoro')
+
+    render(<App />)
+
+    expect(screen.getByText('Today item')).toBeInTheDocument()
+    expect(
+      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Próximo dia' }))
+
+    expect(screen.getByText('Tomorrow item')).toBeInTheDocument()
+    expect(
+      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+    ).toBeInTheDocument()
+    expect(getFocusSelectButton('Tomorrow item')).toHaveAttribute('aria-pressed', 'false')
+  })
 })
