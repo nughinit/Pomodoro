@@ -9,6 +9,8 @@
   gap: 16px;
   width: 100%;
   max-width: 360px;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .focus-timer__session {

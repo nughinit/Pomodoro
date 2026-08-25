@@ -115,11 +115,10 @@ export function TodayEssentialTasks({
 
   return (
     <section className="today-tasks" aria-labelledby="today-tasks-heading">
-      <h2 id="today-tasks-heading" ref={headingRef} tabIndex={-1} className="today-tasks__title">
-        Hoje
-      </h2>
-
       <div className="today-tasks__card">
+        <h2 id="today-tasks-heading" ref={headingRef} tabIndex={-1} className="today-tasks__title">
+          Hoje
+        </h2>
         <h3 className="today-tasks__subtitle">Tarefas essenciais</h3>
         <p className="today-tasks__hint">Escolha até quatro tarefas essenciais para hoje.</p>
         <p className="today-tasks__progress">

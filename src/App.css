@@ -3,17 +3,20 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 24px;
-  padding: 16px;
+  padding: 40px 16px;
+  box-sizing: border-box;
 }
 
 .app-shell__card {
+  width: 100%;
+  max-width: 748px;
   background: var(--mallow-surface-raised);
   border-radius: var(--mallow-radius-lg);
   box-shadow: var(--mallow-shadow-raised);
-  padding: 48px;
+  padding: 28px 48px;
   text-align: center;
+  box-sizing: border-box;
 }
 
 .app-shell__title {
@@ -26,4 +29,27 @@
 .app-shell__tagline {
   margin: 8px 0 0;
   color: var(--mallow-ink);
+}
+
+.app-shell__workspace {
+  width: 100%;
+  max-width: 748px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 360px));
+  gap: 28px;
+  align-items: start;
+  justify-content: center;
+}
+
+@media (max-width: 839px) {
+  .app-shell__workspace {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 360px;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-shell__card {
+    padding: 24px;
+  }
 }

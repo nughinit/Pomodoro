@@ -26,6 +26,34 @@ describe('App', () => {
       todaySection.compareDocumentPosition(timer) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
   })
+
+  it('renders the tasks section and focus timer inside a single workspace wrapper', () => {
+    const { container } = render(<App />)
+
+    const workspace = container.querySelector('.app-shell__workspace')
+    expect(workspace).toBeInTheDocument()
+    expect(workspace?.children).toHaveLength(2)
+
+    const todaySection = screen.getByRole('heading', { name: 'Hoje' }).closest('section')
+    const timerSection = screen.getByLabelText('Cronômetro de foco')
+
+    expect(workspace).toContainElement(todaySection)
+    expect(workspace).toContainElement(timerSection)
+    expect(workspace?.children[0]).toBe(todaySection)
+    expect(workspace?.children[1]).toBe(timerSection)
+  })
+
+  it('keeps the h1 -> h2 -> h3 heading hierarchy', () => {
+    render(<App />)
+
+    const h1 = screen.getByRole('heading', { level: 1, name: 'VIA' })
+    const h2 = screen.getByRole('heading', { level: 2, name: 'Hoje' })
+    const h3 = screen.getByRole('heading', { level: 3, name: 'Tarefas essenciais' })
+
+    expect(h1).toBeInTheDocument()
+    expect(h2).toBeInTheDocument()
+    expect(h3).toBeInTheDocument()
+  })
 })
 
 function addTaskByButton(title: string) {
