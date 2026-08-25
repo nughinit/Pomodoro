@@ -75,22 +75,45 @@ export function readAgendaItems(storage: StorageLike): ReadAgendaItemsResult {
  * readAgendaItems, this never silently drops an invalid entry supplied by
  * the caller — any invalid item or duplicate id fails the whole write
  * before storage.setItem is ever called.
+ *
+ * Every step that touches caller-supplied data (field validation,
+ * duplicate detection, canonicalization) runs inside a try/catch: a
+ * hostile or broken input — a throwing getter, a Proxy trap, a non-array
+ * — must never escape as an exception. Items are rebuilt field-by-field
+ * (never spread) so unexpected/circular extra properties can never reach
+ * storage or JSON.stringify.
  */
 export function writeAgendaItems(
   storage: StorageLike,
   items: AgendaItem[],
 ): WriteAgendaItemsResult {
+  if (!Array.isArray(items)) return { status: 'error' }
+
   const seenIds = new Set<string>()
+  const canonicalItems: AgendaItem[] = []
 
   for (const item of items) {
-    if (!isValidAgendaItemCandidate(item)) return { status: 'invalid-items' }
-    if (seenIds.has(item.id)) return { status: 'invalid-items' }
-    seenIds.add(item.id)
+    try {
+      if (!isValidAgendaItemCandidate(item)) return { status: 'invalid-items' }
+      if (seenIds.has(item.id)) return { status: 'invalid-items' }
+      seenIds.add(item.id)
+
+      canonicalItems.push({
+        id: item.id,
+        title: item.title,
+        status: item.status,
+        localDate: item.localDate,
+        startTime: item.startTime,
+        durationMinutes: item.durationMinutes,
+      })
+    } catch {
+      return { status: 'error' }
+    }
   }
 
   const record: AgendaRecord = {
     version: AGENDA_SCHEMA_VERSION,
-    items: items.map((item) => ({ ...item })),
+    items: canonicalItems,
   }
 
   let serialized: string

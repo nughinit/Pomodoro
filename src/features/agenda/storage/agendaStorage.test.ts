@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   AGENDA_STORAGE_KEY,
   migrateEssentialTasksToAgenda,
@@ -365,23 +365,132 @@ describe('writeAgendaItems', () => {
   })
 
   it('returns an error result when JSON.stringify throws', () => {
-    const storage = new FakeStorage()
-    // A valid-shaped item carrying an extra circular property: it passes
-    // the field-by-field validator (which only reads known fields) but
-    // fails serialization, since writeAgendaItems copies all own
-    // properties via spread before calling JSON.stringify.
-    const circularItem = agendaItem() as unknown as Record<string, unknown>
-    circularItem.self = circularItem
+    const spy = vi.spyOn(JSON, 'stringify').mockImplementation(() => {
+      throw new Error('stringify failed')
+    })
 
-    const result = writeAgendaItems(storage, [circularItem as unknown as AgendaItem])
+    try {
+      const storage = new FakeStorage()
+      const result = writeAgendaItems(storage, [agendaItem()])
 
-    expect(result).toEqual({ status: 'error' })
-    expect(storage.getItem(AGENDA_STORAGE_KEY)).toBeNull()
+      expect(result).toEqual({ status: 'error' })
+      expect(storage.getItem(AGENDA_STORAGE_KEY)).toBeNull()
+    } finally {
+      spy.mockRestore()
+    }
   })
 
   it('returns an error result when setItem throws', () => {
     const result = writeAgendaItems(new ThrowingSetStorage(), [agendaItem()])
     expect(result).toEqual({ status: 'error' })
+  })
+
+  it('drops a serializable extra property from a valid item and still writes', () => {
+    const storage = new FakeStorage()
+    const withExtra = { ...agendaItem(), extra: 'nope' } as unknown as AgendaItem
+
+    const result = writeAgendaItems(storage, [withExtra])
+
+    expect(result).toEqual({ status: 'ok' })
+    expect(JSON.parse(storage.getItem(AGENDA_STORAGE_KEY)!)).toEqual({
+      version: 1,
+      items: [agendaItem()],
+    })
+  })
+
+  it('ignores a circular extra property on a valid item and still writes', () => {
+    const storage = new FakeStorage()
+    const withCircularExtra = agendaItem() as unknown as Record<string, unknown>
+    withCircularExtra.self = withCircularExtra
+
+    const result = writeAgendaItems(storage, [withCircularExtra as unknown as AgendaItem])
+
+    expect(result).toEqual({ status: 'ok' })
+    expect(JSON.parse(storage.getItem(AGENDA_STORAGE_KEY)!)).toEqual({
+      version: 1,
+      items: [agendaItem()],
+    })
+  })
+
+  it('returns error, not a thrown exception, when the id getter throws', () => {
+    const storage = new FakeStorage()
+    const hostileItem = agendaItem() as unknown as Record<string, unknown>
+    Object.defineProperty(hostileItem, 'id', {
+      get() {
+        throw new Error('id getter failed')
+      },
+    })
+
+    expect(() => writeAgendaItems(storage, [hostileItem as unknown as AgendaItem])).not.toThrow()
+    const result = writeAgendaItems(storage, [hostileItem as unknown as AgendaItem])
+
+    expect(result).toEqual({ status: 'error' })
+    expect(storage.getItem(AGENDA_STORAGE_KEY)).toBeNull()
+  })
+
+  it('returns error, not a thrown exception, when the title getter throws', () => {
+    const storage = new FakeStorage()
+    const hostileItem = agendaItem() as unknown as Record<string, unknown>
+    Object.defineProperty(hostileItem, 'title', {
+      get() {
+        throw new Error('title getter failed')
+      },
+    })
+
+    expect(() => writeAgendaItems(storage, [hostileItem as unknown as AgendaItem])).not.toThrow()
+    const result = writeAgendaItems(storage, [hostileItem as unknown as AgendaItem])
+
+    expect(result).toEqual({ status: 'error' })
+    expect(storage.getItem(AGENDA_STORAGE_KEY)).toBeNull()
+  })
+
+  it('returns error, not a thrown exception, when a Proxy throws on a known field', () => {
+    const storage = new FakeStorage()
+    const base = agendaItem()
+    const hostileProxy = new Proxy(base, {
+      get(target, prop, receiver) {
+        if (prop === 'status') throw new Error('proxy get trap failed')
+        return Reflect.get(target, prop, receiver)
+      },
+    })
+
+    expect(() => writeAgendaItems(storage, [hostileProxy as unknown as AgendaItem])).not.toThrow()
+    const result = writeAgendaItems(storage, [hostileProxy as unknown as AgendaItem])
+
+    expect(result).toEqual({ status: 'error' })
+    expect(storage.getItem(AGENDA_STORAGE_KEY)).toBeNull()
+  })
+
+  it('never triggers a Proxy ownKeys/enumeration trap, since items are never spread', () => {
+    const storage = new FakeStorage()
+    const base = agendaItem()
+    const proxyWithThrowingEnumeration = new Proxy(base, {
+      ownKeys() {
+        throw new Error('should never be called: writeAgendaItems must not enumerate/spread items')
+      },
+      getOwnPropertyDescriptor() {
+        throw new Error('should never be called: writeAgendaItems must not enumerate/spread items')
+      },
+    })
+
+    const result = writeAgendaItems(storage, [proxyWithThrowingEnumeration as unknown as AgendaItem])
+
+    expect(result).toEqual({ status: 'ok' })
+    expect(JSON.parse(storage.getItem(AGENDA_STORAGE_KEY)!)).toEqual({
+      version: 1,
+      items: [agendaItem()],
+    })
+  })
+
+  it('returns error for a non-array input provided via cast', () => {
+    const storage = new FakeStorage()
+    const notAnArray = { length: 0 } as unknown as AgendaItem[]
+
+    expect(() => writeAgendaItems(storage, notAnArray)).not.toThrow()
+    const result = writeAgendaItems(storage, notAnArray)
+
+    expect(result).toEqual({ status: 'error' })
+    expect(storage.getItem(AGENDA_STORAGE_KEY)).toBeNull()
   })
 })
 
