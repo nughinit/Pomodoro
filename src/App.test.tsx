@@ -171,7 +171,7 @@ describe('App integration: agenda planning and focus timer', () => {
     expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
     expect(screen.getByLabelText('Tempo restante 24:00')).toBeInTheDocument()
     expect(
-      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+      within(getFocusTimerSection()).getByText('Escolha um item da agenda para iniciar.'),
     ).toBeInTheDocument()
 
     act(() => {
@@ -414,7 +414,7 @@ describe('App integration: focus item selection', () => {
     fireEvent.click(getCompleteCheckbox('Write the report'))
 
     expect(
-      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+      within(getFocusTimerSection()).getByText('Escolha um item da agenda para iniciar.'),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Iniciar' })).toBeDisabled()
   })
@@ -429,7 +429,7 @@ describe('App integration: focus item selection', () => {
     fireEvent.click(getConfirmRemoveButton())
 
     expect(
-      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+      within(getFocusTimerSection()).getByText('Escolha um item da agenda para iniciar.'),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Iniciar' })).toBeDisabled()
     expect(screen.getByLabelText('Tempo restante 25:00')).toBeInTheDocument()
@@ -444,7 +444,7 @@ describe('App integration: focus item selection', () => {
     fireEvent.click(getReopenCheckbox('Write the report'))
 
     expect(
-      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+      within(getFocusTimerSection()).getByText('Escolha um item da agenda para iniciar.'),
     ).toBeInTheDocument()
     expect(getFocusSelectButton('Write the report')).toHaveAttribute('aria-pressed', 'false')
   })
@@ -459,13 +459,13 @@ describe('App integration: focus item selection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Próximo dia' }))
 
     expect(
-      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+      within(getFocusTimerSection()).getByText('Escolha um item da agenda para iniciar.'),
     ).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Dia anterior' }))
 
     expect(
-      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+      within(getFocusTimerSection()).getByText('Escolha um item da agenda para iniciar.'),
     ).toBeInTheDocument()
   })
 
@@ -481,7 +481,7 @@ describe('App integration: focus item selection', () => {
 
     expect(screen.getByText('Write the report')).toBeInTheDocument()
     expect(
-      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+      within(getFocusTimerSection()).getByText('Escolha um item da agenda para iniciar.'),
     ).toBeInTheDocument()
     expect(getFocusSelectButton('Write the report')).toHaveAttribute('aria-pressed', 'false')
   })
@@ -522,7 +522,7 @@ describe('App integration: focus item selection', () => {
     fireEvent.click(getUnlinkButton())
 
     expect(
-      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+      within(getFocusTimerSection()).getByText('Escolha um item da agenda para iniciar.'),
     ).toBeInTheDocument()
     expect(getFocusSelectButton('Write the report')).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByLabelText('Tempo restante 25:00')).toBeInTheDocument()
@@ -539,7 +539,7 @@ describe('App integration: focus item selection', () => {
     addItemByButton('Write the report')
 
     expect(
-      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+      within(getFocusTimerSection()).getByText('Escolha um item da agenda para iniciar.'),
     ).toBeInTheDocument()
     expect(getFocusSelectButton('Write the report')).toHaveAttribute('aria-pressed', 'false')
   })
@@ -570,7 +570,7 @@ describe('App integration: date changes during an active session', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Próximo dia' }))
 
     expect(
-      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+      within(getFocusTimerSection()).getByText('Escolha um item da agenda para iniciar.'),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
 
@@ -583,7 +583,7 @@ describe('App integration: date changes during an active session', () => {
 
     expect(getAgendaListItem('Write the report')).toBeInTheDocument()
     expect(
-      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+      within(getFocusTimerSection()).getByText('Escolha um item da agenda para iniciar.'),
     ).toBeInTheDocument()
     expect(getFocusSelectButton('Write the report')).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
@@ -606,7 +606,7 @@ describe('App integration: date changes during an active session', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Próximo dia' }))
 
     expect(
-      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+      within(getFocusTimerSection()).getByText('Escolha um item da agenda para iniciar.'),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Continuar' })).toBeInTheDocument()
     expect(screen.getByLabelText('Tempo restante 24:00')).toBeInTheDocument()
@@ -615,7 +615,7 @@ describe('App integration: date changes during an active session', () => {
 
     expect(getAgendaListItem('Write the report')).toBeInTheDocument()
     expect(
-      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+      within(getFocusTimerSection()).getByText('Escolha um item da agenda para iniciar.'),
     ).toBeInTheDocument()
     expect(getFocusSelectButton('Write the report')).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByRole('button', { name: 'Continuar' })).toBeInTheDocument()
@@ -648,7 +648,7 @@ describe('App integration: completing or removing the selected item during activ
     fireEvent.click(getCompleteCheckbox('Write the report'))
 
     expect(
-      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+      within(getFocusTimerSection()).getByText('Escolha um item da agenda para iniciar.'),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Continuar' })).toBeInTheDocument()
     expect(screen.getByLabelText('Tempo restante 24:00')).toBeInTheDocument()
@@ -677,7 +677,7 @@ describe('App integration: completing or removing the selected item during activ
 
     expect(screen.queryByText('Write the report')).not.toBeInTheDocument()
     expect(
-      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+      within(getFocusTimerSection()).getByText('Escolha um item da agenda para iniciar.'),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
     expect(screen.getByLabelText('Tempo restante 24:00')).toBeInTheDocument()
@@ -704,7 +704,7 @@ describe('App integration: completing or removing the selected item during activ
 
     expect(screen.queryByText('Write the report')).not.toBeInTheDocument()
     expect(
-      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+      within(getFocusTimerSection()).getByText('Escolha um item da agenda para iniciar.'),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Continuar' })).toBeInTheDocument()
     expect(screen.getByLabelText('Tempo restante 24:00')).toBeInTheDocument()
@@ -782,7 +782,7 @@ describe('App integration: natural completion and reset', () => {
 
     fireEvent.click(getUnlinkButton())
     expect(
-      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+      within(getFocusTimerSection()).getByText('Escolha um item da agenda para iniciar.'),
     ).toBeInTheDocument()
   })
 })
@@ -845,14 +845,14 @@ describe('App integration: multiday persistence and remount', () => {
 
     expect(screen.getByText('Today item')).toBeInTheDocument()
     expect(
-      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+      within(getFocusTimerSection()).getByText('Escolha um item da agenda para iniciar.'),
     ).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Próximo dia' }))
 
     expect(screen.getByText('Tomorrow item')).toBeInTheDocument()
     expect(
-      within(getFocusTimerSection()).getByText('Escolha uma tarefa essencial para iniciar.'),
+      within(getFocusTimerSection()).getByText('Escolha um item da agenda para iniciar.'),
     ).toBeInTheDocument()
     expect(getFocusSelectButton('Tomorrow item')).toHaveAttribute('aria-pressed', 'false')
   })

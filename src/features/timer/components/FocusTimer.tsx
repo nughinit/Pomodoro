@@ -78,7 +78,7 @@ export function FocusTimer({
         {selectedTask ? (
           <p className="focus-timer__focus-title">{selectedTask.title}</p>
         ) : (
-          <p className="focus-timer__focus-empty">Escolha uma tarefa essencial para iniciar.</p>
+          <p className="focus-timer__focus-empty">Escolha um item da agenda para iniciar.</p>
         )}
         {selectedTask && (
           <button

@@ -227,7 +227,7 @@ describe('FocusTimer focus task region', () => {
     render(<FocusTimerHarness selectedTask={null} />)
 
     expect(screen.getByText('Tarefa em foco')).toBeInTheDocument()
-    expect(screen.getByText('Escolha uma tarefa essencial para iniciar.')).toBeInTheDocument()
+    expect(screen.getByText('Escolha um item da agenda para iniciar.')).toBeInTheDocument()
   })
 
   it('disables Iniciar when there is no selected task', () => {
@@ -240,7 +240,7 @@ describe('FocusTimer focus task region', () => {
     render(<FocusTimerHarness selectedTask={{ id: 'task-1', title: 'Write the report', status: 'pending' }} />)
 
     expect(screen.getByText('Write the report')).toBeInTheDocument()
-    expect(screen.queryByText('Escolha uma tarefa essencial para iniciar.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Escolha um item da agenda para iniciar.')).not.toBeInTheDocument()
   })
 
   it('enables Iniciar when a task is selected', () => {
